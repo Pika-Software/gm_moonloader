@@ -19,11 +19,47 @@ std::unique_ptr<MoonEngine::Engine> MoonLoader::g_pMoonEngine;
 std::unique_ptr<Compiler> MoonLoader::g_pCompiler;
 std::unique_ptr<Watchdog> MoonLoader::g_pWatchdog;
 
+bool CPreCacheFile(const std::string& path) {
+    DevMsg("[Moonloader] Precaching %s\n", path.c_str());
+    return g_pCompiler->CompileMoonScript(path);
+}
+
+void CPreCacheDir(const std::string& startPath) {
+    std::string searchPath = startPath + "/*";
+
+    FileFindHandle_t findHandle; // note: FileFINDHandle
+    const char* pFilename = g_pFullFileSystem->FindFirstEx(searchPath.c_str(), GMOD_LUA_PATH_ID, &findHandle);
+    while (pFilename) {
+        if (pFilename[0] != '.') {
+            std::string path = startPath + "/" + pFilename;
+            const char* fileExt = V_GetFileExtension(path.c_str());
+            if (g_pFullFileSystem->IsDirectory(path.c_str(), GMOD_LUA_PATH_ID)) {
+                CPreCacheDir(path);
+            } else if (fileExt != nullptr && strcmp(fileExt, "moon") == 0) {
+                CPreCacheFile(path);
+            }
+        };
+
+        pFilename = g_pFullFileSystem->FindNext(findHandle);
+    }
+    g_pFullFileSystem->FindClose(findHandle);
+}
+
 namespace LuaFuncs {
     LUA_FUNCTION(ToLua) {
         const char* code = LUA->CheckString(1);
         std::string compiledCode = g_pMoonEngine->CompileString(code);
         LUA->PushString(compiledCode.c_str());
+        return 1;
+    }
+
+    LUA_FUNCTION(PreCacheDir) {
+        CPreCacheDir(LUA->CheckString(1));
+        return 0;
+    }
+
+    LUA_FUNCTION(PreCacheFile) {
+        LUA->PushBool(CPreCacheFile(LUA->CheckString(1)));
         return 1;
     }
 }
@@ -110,6 +146,8 @@ GMOD_MODULE_OPEN() {
 
     LUA->CreateTable();
         LUA->PushCFunction(LuaFuncs::ToLua); LUA->SetField(-2, "ToLua");
+        LUA->PushCFunction(LuaFuncs::PreCacheDir); LUA->SetField(-2, "PreCacheDir");
+        LUA->PushCFunction(LuaFuncs::PreCacheFile); LUA->SetField(-2, "PreCacheFile");
     LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "moonloader");
 
     return 0;
