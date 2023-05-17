@@ -1,0 +1,186 @@
+name: Build
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.hpp'
+      - '**.h'
+      - '**.cpp'
+      - '**.c'
+      - '**.cmake'
+      - '**.txt'
+      - '.github/workflows/build.yml'
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: '[x32] Download garrysmod_common'
+        uses: actions/checkout@v3
+        with:
+          repository: 'dankmolot/garrysmod_common'
+          ref: 'master-cmake'
+          submodules: 'recursive'
+          path: 'third-party/garrysmod_common'
+
+      - name: '[x32] Configure project (Serverside)'
+        run: |
+          cmake -B build -S . -A Win32 `
+            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" `
+            -DAUTOINSTALL="." `
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: '[x32] Build project (Serverside)'
+        run: cmake --build build --config Release -j -t moonloader
+
+      - name: '[x32] Configure project (Clientside)'
+        run: cmake -B build -S . -DCLIENT_DLL=ON
+
+      - name: '[x32] Build project (Clientside)'
+        run: cmake --build build --config Release -j -t moonloader
+
+      - name: '[x64] Download garrysmod_common'
+        uses: actions/checkout@v3
+        with:
+          repository: 'dankmolot/garrysmod_common'
+          ref: 'x86-64-cmake'
+          submodules: 'recursive'
+          path: 'third-party/garrysmod_common64'
+
+      - name: '[x64] Configure project (Serverside)'
+        run: |
+          cmake -B build64 -S . -A x64 `
+            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" `
+            -DAUTOINSTALL="." `
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: '[x64] Build project (Serverside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: '[x64] Configure project (Clientside)'
+        run: cmake -B build64 -S . -DCLIENT_DLL=ON
+
+      - name: '[x64] Build project (Clientside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Windows
+          path: |
+            ./*.dll
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-20.04 # Using ubuntu 20.04 since we want to use old gcc version to ensure compatibility
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Install dependencies
+        run: |
+          sudo apt install gcc-multilib g++-multilib
+
+      - name: '[x32] Download garrysmod_common'
+        uses: actions/checkout@v3
+        with:
+          repository: 'dankmolot/garrysmod_common'
+          ref: 'master-cmake'
+          submodules: 'recursive'
+          path: 'third-party/garrysmod_common'
+
+      - name: '[x32] Configure project (Serverside)'
+        run: |
+          cmake -B build -S . \
+            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" \
+            -DAUTOINSTALL="." \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"
+
+      - name: '[x32] Build project (Serverside)'
+        run: cmake --build build --config Release -j -t moonloader
+
+      - name: '[x32] Configure project (Clientside)'
+        run: cmake -B build -S . -DCLIENT_DLL=ON
+
+      - name: '[x32] Build project (Clientside)'
+        run: cmake --build build --config Release -j -t moonloader
+
+      - name: '[x64] Download garrysmod_common'
+        uses: actions/checkout@v3
+        with:
+          repository: 'dankmolot/garrysmod_common'
+          ref: 'x86-64-cmake'
+          submodules: 'recursive'
+          path: 'third-party/garrysmod_common64'
+
+      - name: '[x64] Configure project (Serverside)'
+        run: |
+          cmake -B build64 -S . \
+            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
+            -DAUTOINSTALL="." \
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: '[x64] Build project (Serverside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: '[x64] Configure project (Clientside)'
+        run: cmake -B build64 -S . -DCLIENT_DLL=ON
+
+      - name: '[x64] Build project (Clientside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: Linux
+          path: |
+            ./*.dll
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: '[x64] Download garrysmod_common'
+        uses: actions/checkout@v3
+        with:
+          repository: 'dankmolot/garrysmod_common'
+          ref: 'x86-64-cmake'
+          submodules: 'recursive'
+          path: 'third-party/garrysmod_common64'
+
+      - name: '[x64] Configure project (Serverside)'
+        run: |
+          cmake -B build64 -S . \
+            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
+            -DAUTOINSTALL="." \
+            -DBUILD_SHARED_LIBS=OFF
+
+      - name: '[x64] Build project (Serverside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: '[x64] Configure project (Clientside)'
+        run: cmake -B build64 -S . -DCLIENT_DLL=ON
+
+      - name: '[x64] Build project (Clientside)'
+        run: cmake --build build64 --config Release -j -t moonloader
+
+      - name: "Upload artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: MacOS
+          path: |
+            ./*.dll
+          if-no-files-found: error
