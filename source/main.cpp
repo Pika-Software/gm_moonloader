@@ -28,7 +28,7 @@ namespace LuaFuncs {
     }
 }
 
-class ILuaInterfaceProxy : Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, ILuaInterfaceProxy> {
+class ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, ILuaInterfaceProxy> {
 public:
     bool Init() {
         Initialize(g_pLua.get());
