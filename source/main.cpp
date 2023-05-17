@@ -109,6 +109,7 @@ public:
 
                 if (!g_pCompiler->CompileMoonScript(moonPath)) {
                     Warning("[Moonloader] Failed to compile %s\n", moonPath.c_str());
+                    return false;
                 }
             }
         }

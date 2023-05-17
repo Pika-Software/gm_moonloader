@@ -24,6 +24,30 @@ int xpcall_errhandler(lua_State* L) {
     return 0;
 }
 
+// Copied from https://lua-users.org/lists/lua-l/2006-03/msg00335.html
+void stackDump(lua_State* L) {
+    int i = lua_gettop(L);
+    Msg(" ----------------  Stack Dump ----------------\n");
+    while (i) {
+        int t = lua_type(L, i);
+        switch (t) {
+        case LUA_TSTRING:
+            Msg("%d:`%s'\n", i, lua_tostring(L, i));
+            break;
+        case LUA_TBOOLEAN:
+            Msg("%d: %s\n", i, lua_toboolean(L, i) ? "true" : "false");
+            break;
+        case LUA_TNUMBER:
+            Msg("%d: %g\n", i, lua_tonumber(L, i));
+            break;
+        default: Msg("%d: %s\n", i, lua_typename(L, t)); break;
+        }
+        i--;
+    }
+    Msg("--------------- Stack Dump Finished ---------------\n");
+}
+
+
 Engine::Engine() {
     m_State = luaL_newstate(); // Create new Lua state
     luaL_openlibs(m_State); // Initialize Lua standard libraries
@@ -82,14 +106,22 @@ std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len) 
     lua_pushcfunction(m_State, xpcall_errhandler);
     lua_rawgeti(m_State, LUA_REGISTRYINDEX, m_ToLuaRef);
     lua_pushlstring(m_State, moonCode, len);
-    if (lua_pcall(m_State, 1, 1, -3) != LUA_OK) {
+    if (lua_pcall(m_State, 1, 2, -3) != LUA_OK) {
         lua_pop(m_State, 2);
         return {};
     }
 
-    std::string luaCode = lua_tostring(m_State, -1);
-    lua_pop(m_State, 2);
-    return luaCode;
+    const char* result = nullptr;
+    if (lua_type(m_State, -2) == LUA_TSTRING) {
+        result = lua_tostring(m_State, -2);
+    } else if (lua_type(m_State, -1) == LUA_TSTRING) {
+        // Error happened :(
+        const char* err = lua_tostring(m_State, -1);
+        Warning("[MoonEngine] %s\n", err);
+    }
+
+    lua_pop(m_State, 3);
+    return result != nullptr ? result : std::string{};
 }
 
 std::string Engine::CompileString(std::string_view moonCode) {

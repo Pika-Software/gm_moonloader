@@ -1,6 +1,7 @@
 #include "compiler.hpp"
 #include "global.hpp"
 #include "watchdog.hpp"
+#include "utils.hpp"
 
 #include <tier1/utlbuffer.h>
 #include <filesystem.h>
@@ -32,24 +33,14 @@ MD5Value_t Compiler::GetFileHash(void* data, size_t len) {
 }
 
 bool Compiler::CompileMoonScript(std::string path) {
-    CUtlBuffer buf;
-    if (!g_pFullFileSystem->ReadFile(path.data(), GMOD_LUA_PATH_ID, buf)) {
+    std::string readData = Utils::ReadTextFile(path, GMOD_LUA_PATH_ID);
+    if (readData.empty())
         return false;
-    };
 
-    //auto fileHash = GetFileHash(buf);
-    //auto cachedFile = GetCachedFile(path);
-    //if (cachedFile && MD5_Compare(fileHash, cachedFile->hash)) {
-    //    // We don't need to recompile this file
-    //    return true;
-    //}
-
-    // Let's just pray, that data in buffer is proper text file
-    auto data = g_pMoonEngine->CompileString((const char*)buf.Base(), buf.TellPut());
-    if (data.empty()) {
+    auto data = g_pMoonEngine->CompileString(readData.c_str(), readData.size());
+    if (data.empty())
         // Compiled data is empty, ignoring it
         return false;
-    }
 
     std::string dir = path.substr(0, path.find_last_of("/"));
     g_pFullFileSystem->CreateDirHierarchy(dir.c_str(), "MOONLOADER");
