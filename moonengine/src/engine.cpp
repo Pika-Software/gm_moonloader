@@ -55,6 +55,7 @@ Engine::Engine() {
     lua_getfield(m_State, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
     lua_pushcfunction(m_State, luaopen_lpeg);
     lua_setfield(m_State, -2, "lpeg");
+    lua_pop(m_State, 1); // Pop preload table
 
     lua_pushcfunction(m_State, print);
     lua_setglobal(m_State, "print");
@@ -100,7 +101,7 @@ void Engine::RunLua(const char* luaCode) {
     lua_pop(m_State, 1);
 }
 
-std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len) {
+std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len, CompiledLines* lineTable) {
     if (m_ToLuaRef == 0) { return {}; }
 
     lua_pushcfunction(m_State, xpcall_errhandler);
@@ -114,6 +115,16 @@ std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len) 
     const char* result = nullptr;
     if (lua_type(m_State, -2) == LUA_TSTRING) {
         result = lua_tostring(m_State, -2);
+        
+        if (lineTable != nullptr && lua_type(m_State, -1) == LUA_TTABLE) {
+            lua_pushnil(m_State);
+            while (lua_next(m_State, -2) != 0) {
+                size_t line = lua_tointeger(m_State, -2);
+                size_t pos = lua_tointeger(m_State, -1);
+                lineTable->insert_or_assign(line, pos);
+                lua_pop(m_State, 1);
+            }
+        }
     } else if (lua_type(m_State, -1) == LUA_TSTRING) {
         // Error happened :(
         const char* err = lua_tostring(m_State, -1);
@@ -124,6 +135,6 @@ std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len) 
     return result != nullptr ? result : std::string{};
 }
 
-std::string Engine::CompileString(std::string_view moonCode) {
-    return CompileString(moonCode.data(), moonCode.size());
+std::string Engine::CompileString(std::string_view moonCode, CompiledLines* lineTable) {
+    return CompileString(moonCode.data(), moonCode.size(), lineTable);
 }

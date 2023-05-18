@@ -47,9 +47,20 @@ void CPreCacheDir(const std::string& startPath) {
 namespace LuaFuncs {
     LUA_FUNCTION(ToLua) {
         const char* code = LUA->CheckString(1);
-        std::string compiledCode = g_pMoonEngine->CompileString(code);
+        MoonEngine::Engine::CompiledLines lines;
+        std::string compiledCode = g_pMoonEngine->CompileString(code, &lines);
+        
+        // lua_code
         LUA->PushString(compiledCode.c_str());
-        return 1;
+
+        // line_table
+        LUA->CreateTable();
+        for (auto& line : lines) {
+            LUA->PushNumber(line.first);
+            LUA->PushNumber(line.second);
+            LUA->SetTable(-3);
+        }
+        return 2;
     }
 
     LUA_FUNCTION(PreCacheDir) {

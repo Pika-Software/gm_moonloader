@@ -89,6 +89,7 @@ namespace MoonLoader::Utils {
             StripFileExtension(path);
             if (!ext.empty() && ext.front() != '.')
                 path += '.';
+            path += ext;
             return path;
         }
 
