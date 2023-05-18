@@ -1,6 +1,7 @@
 #include "global.hpp"
 #include "compiler.hpp"
 #include "watchdog.hpp"
+#include "utils.hpp"
 
 #include <moonengine/engine.hpp>
 #include <GarrysMod/Lua/Interface.h>
@@ -27,18 +28,16 @@ bool CPreCacheFile(const std::string& path) {
 void CPreCacheDir(const std::string& startPath) {
     std::string searchPath = startPath + "/*";
 
-    FileFindHandle_t findHandle; // note: FileFINDHandle
+    FileFindHandle_t findHandle;
     const char* pFilename = g_pFullFileSystem->FindFirstEx(searchPath.c_str(), GMOD_LUA_PATH_ID, &findHandle);
     while (pFilename) {
-        if (pFilename[0] != '.') {
-            std::string path = startPath + "/" + pFilename;
-            const char* fileExt = V_GetFileExtension(path.c_str());
-            if (g_pFullFileSystem->IsDirectory(path.c_str(), GMOD_LUA_PATH_ID)) {
-                CPreCacheDir(path);
-            } else if (fileExt != nullptr && strcmp(fileExt, "moon") == 0) {
-                CPreCacheFile(path);
-            }
-        };
+        // Now
+        std::string path = Utils::Path::Join(startPath, pFilename);
+        if (Utils::Path::IsDirectory(path, GMOD_LUA_PATH_ID)) {
+            CPreCacheDir(path);
+        } else if (Utils::Path::FileExtension(path) == "moon") {
+            CPreCacheFile(path);
+        }
 
         pFilename = g_pFullFileSystem->FindNext(findHandle);
     }
@@ -85,25 +84,28 @@ public:
     }
 
     virtual bool FindAndRunScript(const char* _fileName, bool run, bool showErrors, const char* runReason, bool noReturns) {
+        // Just for safety
+        if (_fileName == NULL)
+            return false;
+
         std::string fileName = _fileName;
 
-        // Msg("[%s] %s\n", runReason, fileName.c_str());
-
         // Only do compilation in our realm
-        // Hmm, maybe it would be cool if you load moonloader in server state, and then you can use it in menu state for example
+        // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
         if (This() == g_pLua.get()) {
-            std::string fileExt = V_GetFileExtension(fileName.c_str());
-            if (fileExt == "moon") {
-                // Replace .moon with .lua
-                fileName = fileName.substr(0, fileName.find_last_of(".")) + ".lua";
+            bool isMoonScript = Utils::Path::FileExtension(fileName) == "moon";
+            if (isMoonScript) {
+                // Change to .lua, so we will load compiled version
+                Utils::Path::SetFileExtension(fileName, "lua");
             }
-
+            
             // Path to .moon script
-            std::string moonPath = fileName.substr(0, fileName.find_last_of(".")) + ".moon";
-            if (g_pFullFileSystem->FileExists(moonPath.c_str(), MoonLoader::GMOD_LUA_PATH_ID)) {
+            std::string moonPath = fileName;
+            Utils::Path::SetFileExtension(moonPath, "moon");
+            if (Utils::Path::Exists(moonPath, GMOD_LUA_PATH_ID)) {
                 // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
                 // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.
-                if (strcmp(runReason, "!RELOAD") == 0 && fileExt != "moon") {
+                if (strcmp(runReason, "!RELOAD") == 0 && !isMoonScript) {
                     return false;
                 }
 
