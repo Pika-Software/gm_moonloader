@@ -33,11 +33,11 @@ MD5Value_t Compiler::GetFileHash(void* data, size_t len) {
 }
 
 bool Compiler::CompileMoonScript(std::string path) {
-    std::string readData = Utils::ReadTextFile(path, GMOD_LUA_PATH_ID);
+    auto readData = Utils::ReadBinaryFile(path, GMOD_LUA_PATH_ID);
     if (readData.empty())
         return false;
 
-    auto data = g_pMoonEngine->CompileString(readData.c_str(), readData.size());
+    auto data = g_pMoonEngine->CompileString(readData.data(), readData.size());
     if (data.empty())
         // Compiled data is empty, ignoring it
         return false;
@@ -49,12 +49,5 @@ bool Compiler::CompileMoonScript(std::string path) {
     g_pWatchdog->WatchFile(path, GMOD_LUA_PATH_ID);
 
     path = path.substr(0, path.find_last_of(".")) + ".lua";
-    auto fh = g_pFullFileSystem->Open(path.c_str(), "wb", "MOONLOADER");
-    if (!fh) {
-        return false;
-    }
-
-    int written = g_pFullFileSystem->Write(data.c_str(), data.size(), fh);
-    g_pFullFileSystem->Close(fh);
-    return written == data.size();
+    return Utils::WriteToFile(path, "MOONLOADER", data.c_str(), data.size());
 }
