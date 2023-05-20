@@ -105,7 +105,7 @@ namespace MoonLoader {
             : m_Filesystem(filesystem), m_SearchWildcard(wildcard), m_PathID(pathID ? pathID : "") {}
 
         iterator begin();
-        static iterator end() { return iterator(); }
+        iterator end() const { return iterator(); }
     };
 }
 
