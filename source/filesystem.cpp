@@ -153,9 +153,11 @@ namespace MoonLoader {
     }
 
     // ---------------------------- FileFinder ----------------------------
+    Filesystem::FileFinder::iterator Filesystem::FileFinder::INVALID_ITERATOR = {};
+
     Filesystem::FileFinder::iterator& Filesystem::FileFinder::iterator::operator++() {
         if (!m_Filesystem || !valid_handle() || m_pFileName == NULL)
-            return iterator();
+            return INVALID_ITERATOR;
 
         m_Filesystem->m_IOLock.lock();
         m_pFileName = m_Filesystem->m_InternalFS->FindNext(m_Handle);
@@ -165,7 +167,7 @@ namespace MoonLoader {
         }
         m_Filesystem->m_IOLock.unlock();
 
-        return m_pFileName != NULL ? *this : iterator();
+        return m_pFileName != NULL ? *this : INVALID_ITERATOR;
     }
 
     Filesystem::FileFinder::iterator Filesystem::FileFinder::begin() {

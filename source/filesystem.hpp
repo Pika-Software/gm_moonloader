@@ -101,11 +101,13 @@ namespace MoonLoader {
             reference operator*() const { return m_pFileName; }
         };
 
+        static iterator INVALID_ITERATOR;
+
         FileFinder(Filesystem* filesystem, const std::string& wildcard, const char* pathID = 0)
             : m_Filesystem(filesystem), m_SearchWildcard(wildcard), m_PathID(pathID ? pathID : "") {}
 
         iterator begin();
-        iterator end() const { return iterator(); }
+        iterator end() const { return INVALID_ITERATOR; }
     };
 }
 
