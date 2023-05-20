@@ -1,7 +1,7 @@
 #include "compiler.hpp"
 #include "global.hpp"
 #include "watchdog.hpp"
-#include "utils.hpp"
+#include "filesystem.hpp"
 
 #include <tier1/utlbuffer.h>
 #include <filesystem.h>
@@ -9,7 +9,7 @@
 
 namespace MoonLoader {
     bool Compiler::CompileMoonScript(std::string path) {
-        auto readData = Utils::ReadBinaryFile(path, GMOD_LUA_PATH_ID);
+        auto readData = g_pFilesystem->ReadBinaryFile(path, GMOD_LUA_PATH_ID);
         if (readData.empty())
             return false;
 
@@ -19,14 +19,14 @@ namespace MoonLoader {
 
         // Create directories for .lua file
         std::string dir = path;
-        Utils::Path::StripFileName(dir);
-        Utils::Path::CreateDirs(dir.c_str(), "MOONLOADER");
+        g_pFilesystem->StripFileName(dir);
+        g_pFilesystem->CreateDirs(dir.c_str(), "MOONLOADER");
 
         // Watch for changes of .moon file
         g_pWatchdog->WatchFile(path, GMOD_LUA_PATH_ID);
 
         // Write compiled code to .lua file
-        Utils::Path::SetFileExtension(path, "lua");
-        return Utils::WriteToFile(path, "MOONLOADER", data.c_str(), data.size());
+        g_pFilesystem->SetFileExtension(path, "lua");
+        return g_pFilesystem->WriteToFile(path, "MOONLOADER", data.c_str(), data.size());
     }
 }

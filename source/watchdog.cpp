@@ -1,11 +1,10 @@
 #include "watchdog.hpp"
 #include "global.hpp"
 #include "compiler.hpp"
-#include "utils.hpp"
+#include "filesystem.hpp"
 
 #include <efsw/efsw.hpp>
 #include <tier0/dbg.h>
-#include <filesystem.h>
 #include <chrono>
 #include <GarrysMod/Lua/LuaInterface.h>
 
@@ -20,7 +19,7 @@ public:
         // We only care about modified files
         if (action == efsw::Actions::Modified) {
             std::string path = dir + filename;
-            Utils::Path::FixSlashes(path);
+            Filesystem::FixSlashes(path);
             g_pWatchdog->OnFileModified(path);
         }
     }
@@ -40,7 +39,7 @@ Watchdog::~Watchdog() {
 
 void Watchdog::OnFileModified(std::string_view path) {
     // We only care about .moon files
-    if (Utils::Path::FileExtension(path) != "moon")
+    if (Filesystem::FileExtension(path) != "moon")
         return;
 
     m_ModifiedFilesMutex.lock();
@@ -66,9 +65,9 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
         return;
     }
 
-    std::string fullPath = Utils::Path::RelativeToFullPath(path, pathID);
-    Utils::Path::FixSlashes(fullPath);
-    Utils::Path::StripFileName(fullPath);
+    std::string fullPath = g_pFilesystem->RelativeToFullPath(path, pathID);
+    Filesystem::FixSlashes(fullPath);
+    Filesystem::StripFileName(fullPath);
     if (fullPath.empty()) {
         DevWarning("[Moonloader] Unable to find full path for %s\n", path.c_str());
         return;
@@ -84,7 +83,7 @@ void Watchdog::Think() {
         return;
     }
 
-    std::time_t currentTimestamp = Utils::Timestamp();
+    std::time_t currentTimestamp = Filesystem::Timestamp();
 
     std::lock_guard<std::mutex> guard(m_ModifiedFilesMutex);
     while (!m_ModifiedFiles.empty()) {
@@ -92,8 +91,8 @@ void Watchdog::Think() {
         auto timestamp = m_ModifiedFileDelays.find(path);
         // Check if modified file is delayed
         if (timestamp == m_ModifiedFileDelays.end() || (timestamp->second) < currentTimestamp) {
-            std::string relativePath = Utils::Path::FullToRelativePath(path, GMOD_LUA_PATH_ID);
-            Utils::Path::FixSlashes(relativePath);
+            std::string relativePath = g_pFilesystem->FullToRelativePath(path, GMOD_LUA_PATH_ID);
+            Filesystem::FixSlashes(relativePath);
             if (!relativePath.empty()) {
                 DevMsg("[Moonloader] Reloading script %s\n", relativePath.c_str());
 

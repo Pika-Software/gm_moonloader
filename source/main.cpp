@@ -1,7 +1,7 @@
 #include "global.hpp"
 #include "compiler.hpp"
 #include "watchdog.hpp"
-#include "utils.hpp"
+#include "filesystem.hpp"
 
 #include <moonengine/engine.hpp>
 #include <GarrysMod/Lua/Interface.h>
@@ -19,6 +19,7 @@ std::unique_ptr<GarrysMod::Lua::ILuaInterface> MoonLoader::g_pLua;
 std::unique_ptr<MoonEngine::Engine> MoonLoader::g_pMoonEngine;
 std::unique_ptr<Compiler> MoonLoader::g_pCompiler;
 std::unique_ptr<Watchdog> MoonLoader::g_pWatchdog;
+std::unique_ptr<Filesystem> MoonLoader::g_pFilesystem;
 
 bool CPreCacheFile(const std::string& path) {
     DevMsg("[Moonloader] Precaching %s\n", path.c_str());
@@ -26,22 +27,15 @@ bool CPreCacheFile(const std::string& path) {
 }
 
 void CPreCacheDir(const std::string& startPath) {
-    std::string searchPath = startPath + "/*";
-
-    FileFindHandle_t findHandle;
-    const char* pFilename = g_pFullFileSystem->FindFirstEx(searchPath.c_str(), GMOD_LUA_PATH_ID, &findHandle);
-    while (pFilename) {
-        // Now
-        std::string path = Utils::Path::Join(startPath, pFilename);
-        if (Utils::Path::IsDirectory(path, GMOD_LUA_PATH_ID)) {
+    for (auto file : g_pFilesystem->Find(Filesystem::Join(startPath, "*"), GMOD_LUA_PATH_ID)) {
+        std::string path = Filesystem::Join(startPath, file);
+        if (g_pFilesystem->IsDirectory(path, GMOD_LUA_PATH_ID)) {
             CPreCacheDir(path);
-        } else if (Utils::Path::FileExtension(path) == "moon") {
+        }
+        else if (Filesystem::FileExtension(path) == "moon") {
             CPreCacheFile(path);
         }
-
-        pFilename = g_pFullFileSystem->FindNext(findHandle);
     }
-    g_pFullFileSystem->FindClose(findHandle);
 }
 
 namespace LuaFuncs {
@@ -104,16 +98,16 @@ public:
         // Only do compilation in our realm
         // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
         if (This() == g_pLua.get()) {
-            bool isMoonScript = Utils::Path::FileExtension(fileName) == "moon";
+            bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
             if (isMoonScript) {
                 // Change to .lua, so we will load compiled version
-                Utils::Path::SetFileExtension(fileName, "lua");
+                Filesystem::SetFileExtension(fileName, "lua");
             }
             
             // Path to .moon script
             std::string moonPath = fileName;
-            Utils::Path::SetFileExtension(moonPath, "moon");
-            if (Utils::Path::Exists(moonPath, GMOD_LUA_PATH_ID)) {
+            Filesystem::SetFileExtension(moonPath, "moon");
+            if (g_pFilesystem->IsFile(moonPath, GMOD_LUA_PATH_ID)) {
                 // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
                 // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.
                 if (strcmp(runReason, "!RELOAD") == 0 && !isMoonScript) {
@@ -139,12 +133,14 @@ GMOD_MODULE_OPEN() {
     g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
 
-    g_pMoonEngine = std::make_unique<MoonEngine::Engine>();
-    g_pCompiler = std::make_unique<Compiler>();
-    g_pWatchdog = std::make_unique<Watchdog>();
     g_pFullFileSystem = InterfacePointers::FileSystem();
     if (!g_pFullFileSystem)
         LUA->ThrowError("failed to get IFileSystem");
+
+    g_pFilesystem = std::make_unique<Filesystem>(g_pFullFileSystem);
+    g_pMoonEngine = std::make_unique<MoonEngine::Engine>();
+    g_pCompiler = std::make_unique<Compiler>();
+    g_pWatchdog = std::make_unique<Watchdog>();
 
     if (!g_pMoonEngine->IsInitialized())
         LUA->ThrowError("failed to initialize moonengine");
@@ -153,7 +149,12 @@ GMOD_MODULE_OPEN() {
     if (!ILuaInterfaceProxy::Singleton->Init())
         LUA->ThrowError("failed to initialize lua detouring");
 
-    g_pFullFileSystem->CreateDirHierarchy("cache/moonloader/lua");
+    // Cleanup old cache
+    int removed = g_pFilesystem->Remove("cache/moonloader/lua", "GAME");
+    DevMsg("[Moonloader] Removed %d files from cache\n", removed);
+
+    // Create cache directories, and add them to search path
+    g_pFilesystem->CreateDirs("cache/moonloader/lua");
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader", "GAME", PATH_ADD_TO_HEAD);
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", MoonLoader::GMOD_LUA_PATH_ID, PATH_ADD_TO_HEAD);
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", "MOONLOADER", PATH_ADD_TO_HEAD);
@@ -177,6 +178,7 @@ GMOD_MODULE_CLOSE() {
     g_pWatchdog.release();
     g_pCompiler.release();
     g_pMoonEngine.release();
+    g_pFilesystem.release();
     g_pLua.release();
 
     return 0;
