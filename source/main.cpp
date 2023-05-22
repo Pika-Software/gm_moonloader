@@ -2,6 +2,7 @@
 #include "compiler.hpp"
 #include "watchdog.hpp"
 #include "filesystem.hpp"
+#include "utils.hpp"
 
 #include <moonengine/engine.hpp>
 #include <GarrysMod/Lua/Interface.h>
@@ -9,9 +10,16 @@
 #include <detouring/classproxy.hpp>
 #include <filesystem.h>
 #include <GarrysMod/InterfacePointers.hpp>
+#include <detouring/hook.hpp>
+#include <GarrysMod/ModuleLoader.hpp>
+
+extern "C" {
+    #include <lua.h>
+}
 
 const char* MoonLoader::GMOD_LUA_PATH_ID = nullptr;
 IFileSystem* g_pFullFileSystem = nullptr;
+Detouring::Hook lua_getinfo_hook;
 
 using namespace MoonLoader;
 
@@ -126,8 +134,29 @@ public:
 
     static ILuaInterfaceProxy* Singleton;
 };
-
 ILuaInterfaceProxy* ILuaInterfaceProxy::Singleton;
+
+typedef int (*lua_getinfo_t)(lua_State* L, const char* what, lua_Debug* ar);
+int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
+    int ret = lua_getinfo_hook.GetTrampoline<lua_getinfo_t>()(L, what, ar);
+    if (ret != 0) {
+        // File stored in cache/moonloader, so it must be our compiled script?
+        if (Utils::StartsWith(ar->short_src, "cache/moonloader/lua")) {
+            // Yeah, that's weird path transversies, but it works
+            std::string path = g_pFilesystem->RelativeToFullPath(ar->short_src, "GAME");
+            path = g_pFilesystem->FullToRelativePath(path, GMOD_LUA_PATH_ID);
+            Filesystem::SetFileExtension(path, "moon");
+            Filesystem::Normalize(path);
+
+            auto debugInfo = g_pCompiler->GetDebugInfo(path);
+            if (debugInfo) {
+                strncpy(ar->short_src, debugInfo->fullSourcePath.c_str(), sizeof(ar->short_src));
+                ar->currentline = debugInfo->lines[ar->currentline];
+            }
+        }
+    }
+    return ret;
+}
 
 GMOD_MODULE_OPEN() {
     g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
@@ -165,6 +194,14 @@ GMOD_MODULE_OPEN() {
         LUA->PushCFunction(LuaFuncs::PreCacheFile); LUA->SetField(-2, "PreCacheFile");
     LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "moonloader");
 
+    // Detour lua_getinfo and lua_pcall, so we can manipulate error stack traces
+    SourceSDK::ModuleLoader lua_shared("lua_shared");
+    if (!lua_getinfo_hook.Create(
+        lua_shared.GetSymbol("lua_getinfo"),
+        reinterpret_cast<void*>(&lua_getinfo_detour)
+    )) LUA->ThrowError("failed to detour debug.getinfo");
+    if (!lua_getinfo_hook.Enable()) LUA->ThrowError("failed to enable debug.getinfo detour");
+
     return 0;
 }
 
@@ -173,6 +210,8 @@ GMOD_MODULE_CLOSE() {
     ILuaInterfaceProxy::Singleton->Deinit();
     delete ILuaInterfaceProxy::Singleton;
     ILuaInterfaceProxy::Singleton = nullptr;
+
+    lua_getinfo_hook.Destroy();
 
     // Release all our interfaces
     g_pWatchdog.release();

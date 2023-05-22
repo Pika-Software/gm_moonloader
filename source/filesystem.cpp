@@ -30,7 +30,7 @@ namespace MoonLoader {
         return path;
     }
     std::string& Filesystem::LowerCase(std::string& path) {
-        std::transform(path.begin(), path.end(), path.begin(), ::toupper);
+        std::transform(path.begin(), path.end(), path.begin(), ::tolower);
         return path;
     }
     std::string& Filesystem::Normalize(std::string& path) {
