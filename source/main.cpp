@@ -118,6 +118,19 @@ public:
             // Path to .moon script
             std::string moonPath = fileName;
             Filesystem::SetFileExtension(moonPath, "moon");
+
+            if (g_pFilesystem->IsFile(runReason, "GAME")) {
+                // First we need to check if we are loading .moon script
+                // relative to the current script
+                std::string baseDir = g_pFilesystem->TransverseRelativePath(runReason, "GAME", GMOD_LUA_PATH_ID);
+                Filesystem::StripFileName(baseDir);
+                std::string fullMoonPath = Utils::JoinPaths(baseDir, moonPath);
+                if (g_pFilesystem->IsFile(fullMoonPath, GMOD_LUA_PATH_ID)) {
+                    moonPath = fullMoonPath;
+                }
+            }
+
+            // First, check if file exists
             if (g_pFilesystem->IsFile(moonPath, GMOD_LUA_PATH_ID)) {
                 // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
                 // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.

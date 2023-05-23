@@ -1,4 +1,5 @@
 #include "filesystem.hpp"
+#include "utils.hpp"
 
 #include <tier0/dbg.h>
 #include <filesystem.h>
@@ -84,6 +85,12 @@ namespace MoonLoader {
         std::lock_guard<std::mutex> lock(m_IOLock);
         bool success = g_pFullFileSystem->FullPathToRelativePathEx(fullPath.c_str(), pathID, PathBuffer(), PathBufferSize());
         return success ? std::string(PathBuffer()) : std::string{};
+    }
+    std::string Filesystem::TransverseRelativePath(const std::string& relativePath, const char* fromPathID, const char* toPathID) {
+        std::string result = RelativeToFullPath(relativePath, fromPathID);
+        if (!result.empty()) result = FullToRelativePath(result, toPathID);
+        if (!result.empty()) Utils::NormalizePath(result);
+        return result;
     }
     // -------------------------
 

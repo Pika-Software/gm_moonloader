@@ -9,7 +9,9 @@
 #include <platform.h>
 
 namespace MoonLoader::Utils {
-    // String manipulation
+    // ---------------------------
+    // - String manipulation     -
+    // ---------------------------
     inline bool StartsWith(std::string_view str, std::string_view prefix) {
         return str.rfind(prefix, 0) == 0;
     }
@@ -30,8 +32,28 @@ namespace MoonLoader::Utils {
         FixSlashes(path, delimiter);
         LowerCase(path);
     }
+    // dir/file.ext -> dir
+    inline std::string_view GetDirectory(std::string_view path) {
+        size_t pos = path.find_last_of("/\\");
+        if (pos == std::string::npos)
+            return {};
 
-    // Other
+        return path.substr(0, pos);
+    }
+    // dir + subdir/file.ext -> dir/subdir/file.ext
+    inline std::string JoinPaths(std::string_view path, std::string_view subPath) {
+        if (path.empty())
+            return std::string(subPath);
+        if (subPath.empty())
+            return std::string(path);
+        if (path.back() == '/' || path.back() == '\\')
+            return std::string(path) + std::string(subPath);
+        return std::string(path) + '/' + std::string(subPath);
+    }
+
+    // ---------------------------
+    // - Other                   -
+    // ---------------------------
     inline uint64 Timestamp() {
         // Oh, yesss! I love one-liners!
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock().now().time_since_epoch()).count();

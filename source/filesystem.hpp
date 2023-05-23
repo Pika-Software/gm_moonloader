@@ -47,6 +47,7 @@ namespace MoonLoader {
 
         std::string RelativeToFullPath(const std::string& relativePath, const char* pathID);
         std::string FullToRelativePath(const std::string& fullPath, const char* pathID);
+        std::string TransverseRelativePath(const std::string& relativePath, const char* fromPathID, const char* toPathID);
         // -------------------------
 
         bool Exists(const std::string& path, const char* pathID = 0);
