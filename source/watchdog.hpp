@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <queue>
 #include <mutex>
-#include <ctime>
 #include <tier0/platform.h>
 
 namespace efsw {
@@ -26,7 +25,7 @@ namespace MoonLoader {
         std::unordered_map<std::string, efsw::WatchID> m_WatchIDs;
         std::unordered_set<std::string> m_WatchedFiles;
 
-        std::mutex m_ModifiedFilesMutex;
+        std::mutex m_Lock;
         std::queue<std::string> m_ModifiedFiles;
         std::unordered_map<std::string, uint64> m_ModifiedFileDelays;
 
@@ -34,7 +33,10 @@ namespace MoonLoader {
         Watchdog();
         ~Watchdog();
 
-        void OnFileModified(std::string_view path);
+        inline bool IsFileWatched(const std::string& path) { return m_WatchedFiles.find(path) != m_WatchedFiles.end(); }
+        inline bool IsDirectoryWatched(const std::string& path) { return m_WatchIDs.find(path) != m_WatchIDs.end(); }
+
+        void OnFileModified(const std::string& path);
 
         // Directory path must be absolute
         void WatchDirectory(const std::string& path);
