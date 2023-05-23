@@ -6,7 +6,9 @@
 #include <string>
 #include <string_view>
 #include <algorithm>
+#include <GarrysMod/Lua/LuaBase.h>
 #include <platform.h>
+#include <chrono>
 
 namespace MoonLoader::Utils {
     // ---------------------------
@@ -50,6 +52,12 @@ namespace MoonLoader::Utils {
             return std::string(path) + std::string(subPath);
         return std::string(path) + '/' + std::string(subPath);
     }
+
+    // ---------------------------
+    // - Lua utils               -
+    // ---------------------------
+    void FindValue(GarrysMod::Lua::ILuaBase* LUA, std::string_view path);
+    bool RunHook(GarrysMod::Lua::ILuaBase* LUA, const std::string& hookName, int nArgs, int nReturns);
 
     // ---------------------------
     // - Other                   -

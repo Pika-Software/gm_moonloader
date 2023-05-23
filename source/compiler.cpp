@@ -2,10 +2,12 @@
 #include "global.hpp"
 #include "watchdog.hpp"
 #include "filesystem.hpp"
+#include "utils.hpp"
 
 #include <tier1/utlbuffer.h>
 #include <filesystem.h>
 #include <moonengine/engine.hpp>
+#include <GarrysMod/Lua/LuaInterface.h>
 
 size_t LookupLineFromOffset(std::string_view str, size_t offset) {
     int line = 1;
@@ -64,6 +66,10 @@ namespace MoonLoader {
         }
 
         m_CompiledFiles.insert_or_assign(debug.sourcePath, debug);
+
+        // Notice lua about compiled file
+        g_pLua->PushString(debug.sourcePath.c_str());
+        Utils::RunHook(g_pLua.get(), "MoonFileCompiled", 1, 0);
 
         return true;
     }
