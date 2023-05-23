@@ -12,6 +12,7 @@
 #include <GarrysMod/InterfacePointers.hpp>
 #include <detouring/hook.hpp>
 #include <GarrysMod/ModuleLoader.hpp>
+#include <unordered_set>
 
 extern "C" {
     #include <lua.h>
@@ -20,6 +21,7 @@ extern "C" {
 const char* MoonLoader::GMOD_LUA_PATH_ID = nullptr;
 IFileSystem* g_pFullFileSystem = nullptr;
 Detouring::Hook lua_getinfo_hook;
+std::unordered_set<std::string> g_IncludedFiles;
 
 using namespace MoonLoader;
 
@@ -107,6 +109,7 @@ public:
         // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
         if (This() == g_pLua.get()) {
             bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
+            bool isReload = strcmp(runReason, "!RELOAD") == 0;
             if (isMoonScript) {
                 // Change to .lua, so we will load compiled version
                 Filesystem::SetFileExtension(fileName, "lua");
@@ -118,13 +121,25 @@ public:
             if (g_pFilesystem->IsFile(moonPath, GMOD_LUA_PATH_ID)) {
                 // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
                 // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.
-                if (strcmp(runReason, "!RELOAD") == 0 && !isMoonScript) {
-                    return false;
+                // Also ignore .lua files that we didn't included
+                bool wasIncluded = g_IncludedFiles.find(moonPath) != g_IncludedFiles.end();
+                if (isReload) {
+                    if (!isMoonScript)
+                        return false;
+
+                    if (!wasIncluded) {
+                        DevWarning("[Moonloader] %s was not included before, ignoring auto-reload request\n", moonPath.c_str());
+                        return false;
+                    }
                 }
 
                 if (!g_pCompiler->CompileMoonScript(moonPath)) {
                     Warning("[Moonloader] Failed to compile %s\n", moonPath.c_str());
                     return false;
+                }
+
+                if (!wasIncluded) {
+                    g_IncludedFiles.insert(moonPath);
                 }
             }
         }
