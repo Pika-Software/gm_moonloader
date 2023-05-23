@@ -8,7 +8,6 @@
 #include <iterator>
 #include <vector>
 #include <platform.h>
-#include <chrono>
 
 // SourceSDK filesystem
 class IFileSystem;
@@ -22,12 +21,7 @@ namespace MoonLoader {
     public:
         class FileFinder;
 
-        Filesystem(IFileSystem* fs);
-
-        static uint64 Timestamp() {
-            // Oh, yesss! I love one-liners!
-            return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock().now().time_since_epoch()).count();
-        }
+        Filesystem(IFileSystem* fs); 
 
         static char* PathBuffer();
         static size_t PathBufferSize();
