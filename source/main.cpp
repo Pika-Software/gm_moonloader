@@ -3,6 +3,7 @@
 #include "watchdog.hpp"
 #include "filesystem.hpp"
 #include "utils.hpp"
+#include "config.hpp"
 
 #include <moonengine/engine.hpp>
 #include <GarrysMod/Lua/Interface.h>
@@ -187,6 +188,8 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 }
 
 GMOD_MODULE_OPEN() {
+    DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
+
     g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
 
@@ -217,6 +220,14 @@ GMOD_MODULE_OPEN() {
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", "MOONLOADER", PATH_ADD_TO_HEAD);
 
     LUA->CreateTable();
+        LUA->PushString("gm_moonloader"); LUA->SetField(-2, "_NAME");
+        LUA->PushString("Pika-Software"); LUA->SetField(-2, "_AUTHORS");
+        LUA->PushString(MOONLOADER_VERSION "-" MOONLOADER_GIT_HASH); LUA->SetField(-2, "_VERSION");
+        LUA->PushNumber(MOONLOADER_VERSION_MAJOR); LUA->SetField(-2, "_VERSION_MAJOR");
+        LUA->PushNumber(MOONLOADER_VERSION_MINOR); LUA->SetField(-2, "_VERSION_MINOR");
+        LUA->PushNumber(MOONLOADER_VERSION_PATCH); LUA->SetField(-2, "_VERSION_PATCH");
+        LUA->PushString(MOONLOADER_URL); LUA->SetField(-2, "_URL");
+        
         LUA->PushCFunction(LuaFuncs::ToLua); LUA->SetField(-2, "ToLua");
         LUA->PushCFunction(LuaFuncs::PreCacheDir); LUA->SetField(-2, "PreCacheDir");
         LUA->PushCFunction(LuaFuncs::PreCacheFile); LUA->SetField(-2, "PreCacheFile");

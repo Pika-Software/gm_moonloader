@@ -49,6 +49,18 @@ if(NOT GARRYSMOD_COMMON_FOUND) # Check if garrysmod_common has been found
     message(FATAL_ERROR "garrysmod_common not found")
 endif()
 
-project(gm_moonloader VERSION 1.0.0 LANGUAGES CXX)
+# Get the latest abbreviated commit hash of the working branch
+execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    OUTPUT_VARIABLE GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+project(gm_moonloader 
+    VERSION 1.0.0 
+    LANGUAGES CXX 
+    HOMEPAGE_URL "https://github.com/Pika-Software/gm_moonloader"
+)
 
 add_subdirectory(source)

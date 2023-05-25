@@ -1,3 +1,5 @@
+configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/include/config.hpp)
+
 # Include every source file in source directory
 file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.cpp *.hpp)
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR} PREFIX "Sources" FILES ${SOURCES})
@@ -15,7 +17,10 @@ target_link_libraries(moonloader PRIVATE
     moonengine
 )
 
-target_include_directories(moonloader PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(moonloader PRIVATE 
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_BINARY_DIR}/include
+)
 
 set_gmod_suffix_prefix(moonloader)
 
