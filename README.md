@@ -29,6 +29,24 @@ include "example/init.lua" -- Will automatically generate .lua from .moon in gar
 * To properly use `AddCSLuaFile`, precache folder with `moonloader.PreCacheFolder` before adding .lua file
 * `AddCSLuaFile` or `CompileFile` only supports `.lua` extensions, use precaching.
 
+## Example
+```lua
+-- autorun/example_autorun.lua
+if SERVER then
+    require "moonloader"
+    if moonloader then
+        moonloader.PreCacheDir "example"
+    end
+end
+
+AddCSLuaFile "example/init.lua"
+include "example/init.lua"
+```
+```lua
+-- example/init.moon
+print "Hello from Moonscript! ##{i}" for i = 1, 5 
+```
+
 ## API
 ```lua
 ---- Functions ----
