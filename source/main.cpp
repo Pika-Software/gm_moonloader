@@ -14,6 +14,7 @@
 #include <detouring/hook.hpp>
 #include <GarrysMod/ModuleLoader.hpp>
 #include <unordered_set>
+#include <steam/steam_api.h>
 
 extern "C" {
     #include <lua.h>
@@ -96,6 +97,7 @@ public:
         Call(&GarrysMod::Lua::ILuaInterface::Cycle);
         if (This() == g_pLua.get()) {
             g_pWatchdog->Think(); // Watch for file changes
+            SteamAPI_RunCallbacks();
         }
     }
 
@@ -190,6 +192,9 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 GMOD_MODULE_OPEN() {
     DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
 
+    if (!SteamAPI_Init())
+        LUA->ThrowError("failed to initialize SteamAPI");
+
     g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
 
@@ -241,6 +246,8 @@ GMOD_MODULE_OPEN() {
     )) LUA->ThrowError("failed to detour debug.getinfo");
     if (!lua_getinfo_hook.Enable()) LUA->ThrowError("failed to enable debug.getinfo detour");
 
+    StartVersionCheck(g_pLua.get());
+
     return 0;
 }
 
@@ -258,6 +265,8 @@ GMOD_MODULE_CLOSE() {
     g_pMoonEngine.release();
     g_pFilesystem.release();
     g_pLua.release();
+
+    SteamAPI_Shutdown();
 
     return 0;
 }

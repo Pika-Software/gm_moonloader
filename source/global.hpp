@@ -22,6 +22,8 @@ namespace MoonLoader {
     extern std::unique_ptr<Watchdog> g_pWatchdog;
     extern std::unique_ptr<Filesystem> g_pFilesystem;
     extern const char* GMOD_LUA_PATH_ID;
+
+    void StartVersionCheck(GarrysMod::Lua::ILuaInterface* LUA);
 }
 
 #endif //MOONLOADER_GLOBAL_HPP
