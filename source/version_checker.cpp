@@ -12,6 +12,7 @@ constexpr unsigned int MAX_VERSION_LENGTH = 32;
 
 class VersionCheckCallback;
 std::unique_ptr<VersionCheckCallback> g_pVersionCheckCallback;
+ISteamHTTP* g_pSteamHTTP = nullptr;
 
 class VersionCheckCallback {
 public:
@@ -22,7 +23,7 @@ public:
 void VersionCheckCallback::OnHTTPRequestComplete(HTTPRequestCompleted_t* pCallback, bool bIOFailure) {
     if (pCallback->m_eStatusCode == k_EHTTPStatusCode200OK && pCallback->m_unBodySize < MAX_VERSION_LENGTH) {
         char buffer[MAX_VERSION_LENGTH] = {};
-        SteamHTTP()->GetHTTPResponseBodyData(pCallback->m_hRequest, (uint8*)buffer, pCallback->m_unBodySize);
+        g_pSteamHTTP->GetHTTPResponseBodyData(pCallback->m_hRequest, (uint8*)buffer, pCallback->m_unBodySize);
 
         int major, minor, patch;
         if (sscanf(buffer, "%d.%d.%d", &major, &minor, &patch) == 3) {
@@ -36,18 +37,18 @@ void VersionCheckCallback::OnHTTPRequestComplete(HTTPRequestCompleted_t* pCallba
         }
     }
 
-    SteamHTTP()->ReleaseHTTPRequest(pCallback->m_hRequest);
+    g_pSteamHTTP->ReleaseHTTPRequest(pCallback->m_hRequest);
     g_pVersionCheckCallback.release();
 }
 
 LUA_FUNCTION(CheckVersion) {
     SteamAPICall_t call;
-    HTTPRequestHandle handle = SteamHTTP()->CreateHTTPRequest(EHTTPMethod::k_EHTTPMethodGET, "https://raw.githubusercontent.com/Pika-Software/gm_moonloader/main/VERSION");
-    if (SteamHTTP()->SendHTTPRequest(handle, &call)) {
+    HTTPRequestHandle handle = g_pSteamHTTP->CreateHTTPRequest(EHTTPMethod::k_EHTTPMethodGET, "https://raw.githubusercontent.com/Pika-Software/gm_moonloader/main/VERSION");
+    if (g_pSteamHTTP->SendHTTPRequest(handle, &call)) {
         g_pVersionCheckCallback = std::make_unique<VersionCheckCallback>();
         g_pVersionCheckCallback->m_HTTPRequestCompleted.Set(call, g_pVersionCheckCallback.get(), &VersionCheckCallback::OnHTTPRequestComplete);
     } else {
-        SteamHTTP()->ReleaseHTTPRequest(handle);
+        g_pSteamHTTP->ReleaseHTTPRequest(handle);
         DevWarning("[Moonloader] Failed to send version check request\n");
     }
 
@@ -55,6 +56,10 @@ LUA_FUNCTION(CheckVersion) {
 }
 
 void MoonLoader::StartVersionCheck(GarrysMod::Lua::ILuaInterface* LUA) {
+    g_pSteamHTTP = SteamHTTP();
+    if (!g_pSteamHTTP) g_pSteamHTTP = SteamGameServerHTTP();
+    if (!g_pSteamHTTP) return; 
+
     Utils::FindValue(LUA, "timer.Simple");
     LUA->PushNumber(5); // Only check for an update after 5 seconds
     LUA->PushCFunction(CheckVersion);
