@@ -192,9 +192,6 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 GMOD_MODULE_OPEN() {
     DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
 
-    if (!SteamAPI_Init())
-        LUA->ThrowError("failed to initialize SteamAPI");
-
     g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
 
@@ -265,8 +262,6 @@ GMOD_MODULE_CLOSE() {
     g_pMoonEngine.release();
     g_pFilesystem.release();
     g_pLua.release();
-
-    SteamAPI_Shutdown();
 
     return 0;
 }
