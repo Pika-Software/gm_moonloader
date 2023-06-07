@@ -11,7 +11,7 @@
 
 // SourceSDK filesystem
 class IFileSystem;
-typedef int FileFindHandle_t;
+typedef intp FileFindHandle_t;
 
 namespace MoonLoader {
     class Filesystem {
