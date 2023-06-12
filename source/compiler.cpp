@@ -69,7 +69,7 @@ namespace MoonLoader {
 
         // Notice lua about compiled file
         g_pLua->PushString(debug.sourcePath.c_str());
-        Utils::RunHook(g_pLua.get(), "MoonFileCompiled", 1, 0);
+        Utils::RunHook(g_pLua, "MoonFileCompiled", 1, 0);
 
         return true;
     }

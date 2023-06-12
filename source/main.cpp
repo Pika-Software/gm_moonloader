@@ -27,7 +27,7 @@ std::unordered_set<std::string> g_IncludedFiles;
 
 using namespace MoonLoader;
 
-std::unique_ptr<GarrysMod::Lua::ILuaInterface> MoonLoader::g_pLua;
+GarrysMod::Lua::ILuaInterface* MoonLoader::g_pLua = nullptr;
 std::unique_ptr<MoonEngine::Engine> MoonLoader::g_pMoonEngine;
 std::unique_ptr<Compiler> MoonLoader::g_pCompiler;
 std::unique_ptr<Watchdog> MoonLoader::g_pWatchdog;
@@ -83,7 +83,7 @@ namespace LuaFuncs {
 class ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, ILuaInterfaceProxy> {
 public:
     bool Init() {
-        Initialize(g_pLua.get());
+        Initialize(g_pLua);
         return Hook(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, &ILuaInterfaceProxy::FindAndRunScript) &&
             Hook(&GarrysMod::Lua::ILuaInterface::Cycle, &ILuaInterfaceProxy::Cycle);
     }
@@ -95,7 +95,7 @@ public:
 
     virtual void Cycle() {
         Call(&GarrysMod::Lua::ILuaInterface::Cycle);
-        if (This() == g_pLua.get()) {
+        if (This() == g_pLua) {
             g_pWatchdog->Think(); // Watch for file changes
             SteamAPI_RunCallbacks();
         }
@@ -110,7 +110,7 @@ public:
 
         // Only do compilation in our realm
         // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
-        if (This() == g_pLua.get()) {
+        if (This() == g_pLua) {
             bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
             bool isReload = strcmp(runReason, "!RELOAD") == 0;
             if (isMoonScript) {
@@ -192,7 +192,7 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 GMOD_MODULE_OPEN() {
     DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
 
-    g_pLua = std::unique_ptr<GarrysMod::Lua::ILuaInterface>(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
+    g_pLua = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
 
     g_pFullFileSystem = InterfacePointers::FileSystem();
@@ -243,7 +243,7 @@ GMOD_MODULE_OPEN() {
     )) LUA->ThrowError("failed to detour debug.getinfo");
     if (!lua_getinfo_hook.Enable()) LUA->ThrowError("failed to enable debug.getinfo detour");
 
-    StartVersionCheck(g_pLua.get());
+    StartVersionCheck(g_pLua);
 
     return 0;
 }
@@ -254,14 +254,16 @@ GMOD_MODULE_CLOSE() {
     delete ILuaInterfaceProxy::Singleton;
     ILuaInterfaceProxy::Singleton = nullptr;
 
-    lua_getinfo_hook.Destroy();
+    if (!lua_getinfo_hook.Disable())
+        Warning("[Moonloader] Failed to disable lua_getinfo detour\n");
+    if (!lua_getinfo_hook.Destroy())
+        Warning("[Moonloader] Failed to destroy lua_getinfo detour\n");
 
     // Release all our interfaces
     g_pWatchdog.release();
     g_pCompiler.release();
     g_pMoonEngine.release();
     g_pFilesystem.release();
-    g_pLua.release();
 
     return 0;
 }
