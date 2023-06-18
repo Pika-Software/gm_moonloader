@@ -146,7 +146,10 @@ public:
         // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
         if (This() == g_pLua) {
             bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
-            bool isReload = strcmp(runReason, "!RELOAD") == 0;
+            bool isReload = strcmp(runReason, "!RELOAD") == 0
+                || strcmp(runReason, "!UNKNOWN") == 0
+                || strcmp(runReason, "") == 0;
+
             if (isMoonScript) {
                 // Change to .lua, so we will load compiled version
                 Filesystem::SetFileExtension(fileName, "lua");
