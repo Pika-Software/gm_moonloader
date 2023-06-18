@@ -27,6 +27,9 @@ namespace MoonLoader {
         if (readData.empty())
             return false;
 
+        // Watch for changes of .moon file
+        g_pWatchdog->WatchFile(path, GMOD_LUA_PATH_ID);
+
         MoonEngine::Engine::CompiledLines lines;
         auto data = g_pMoonEngine->CompileString(readData.data(), readData.size(), &lines);
         if (data.empty())
@@ -36,9 +39,6 @@ namespace MoonLoader {
         std::string dir = path;
         g_pFilesystem->StripFileName(dir);
         g_pFilesystem->CreateDirs(dir.c_str(), "MOONLOADER");
-
-        // Watch for changes of .moon file
-        g_pWatchdog->WatchFile(path, GMOD_LUA_PATH_ID);
 
         // Write compiled code to .lua file
         std::string compiledPath = path;
