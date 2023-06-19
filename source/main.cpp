@@ -24,6 +24,7 @@ const char* MoonLoader::GMOD_LUA_PATH_ID = nullptr;
 IFileSystem* g_pFullFileSystem = nullptr;
 Detouring::Hook lua_getinfo_hook;
 std::unordered_set<std::string> g_IncludedFiles;
+int g_AddCSLuaFileRef = -1;
 
 using namespace MoonLoader;
 
@@ -78,6 +79,39 @@ namespace LuaFuncs {
         LUA->PushBool(CPreCacheFile(LUA->CheckString(1)));
         return 1;
     }
+
+    LUA_FUNCTION(AddCSLuaFile) {
+        if (g_AddCSLuaFileRef != -1) {
+            if (!LUA->IsType(1, GarrysMod::Lua::Type::String)) {
+                LUA->ReferencePush(g_AddCSLuaFileRef);
+                LUA->Call(0, 0);
+                return 0;
+            }
+
+            std::string targetFile = LUA->GetString(1);
+            Filesystem::SetFileExtension(targetFile, "moon");
+
+            const char* currentDir = g_pLua->GetPath();
+            if (currentDir) {
+                std::string absolutePath = Utils::JoinPaths(currentDir, targetFile);
+                if (g_pFilesystem->IsFile(absolutePath, GMOD_LUA_PATH_ID)) {
+                    targetFile = absolutePath;
+                }
+            }
+
+            if (g_pFilesystem->IsFile(targetFile, GMOD_LUA_PATH_ID) && !g_pCompiler->IsCompiled(targetFile)) {
+                // Compile the file only if it exists and it's not already compiled
+                g_pCompiler->CompileMoonScript(targetFile);
+            }
+
+            Filesystem::SetFileExtension(targetFile, "lua");
+
+            LUA->ReferencePush(g_AddCSLuaFileRef);
+            LUA->PushString(targetFile.c_str());
+            LUA->Call(1, 0);
+        }
+        return 0;
+    }
 }
 
 class ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, ILuaInterfaceProxy> {
@@ -112,7 +146,10 @@ public:
         // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
         if (This() == g_pLua) {
             bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
-            bool isReload = strcmp(runReason, "!RELOAD") == 0;
+            bool isReload = strcmp(runReason, "!RELOAD") == 0
+                || strcmp(runReason, "!UNKNOWN") == 0
+                || strcmp(runReason, "") == 0;
+
             if (isMoonScript) {
                 // Change to .lua, so we will load compiled version
                 Filesystem::SetFileExtension(fileName, "lua");
@@ -193,7 +230,7 @@ GMOD_MODULE_OPEN() {
     DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
 
     g_pLua = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
-    MoonLoader::GMOD_LUA_PATH_ID = g_pLua->IsServer() ? "lsv" : g_pLua->IsClient() ? "lcl" : "LuaMenu";
+    MoonLoader::GMOD_LUA_PATH_ID = g_pLua->GetPathID();
 
     g_pFullFileSystem = InterfacePointers::FileSystem();
     if (!g_pFullFileSystem)
@@ -235,6 +272,18 @@ GMOD_MODULE_OPEN() {
         LUA->PushCFunction(LuaFuncs::PreCacheFile); LUA->SetField(-2, "PreCacheFile");
     LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "moonloader");
 
+    // Detour AddCSLuaFile
+    if (g_pLua->IsServer()) {
+        LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+        if (LUA->IsType(-1, GarrysMod::Lua::Type::Function))
+            g_AddCSLuaFileRef = LUA->ReferenceCreate();
+        else
+            LUA->Pop();
+
+        LUA->PushCFunction(LuaFuncs::AddCSLuaFile);
+        LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+    }
+
     // Detour lua_getinfo and lua_pcall, so we can manipulate error stack traces
     SourceSDK::ModuleLoader lua_shared("lua_shared");
     if (!lua_getinfo_hook.Create(
@@ -249,6 +298,8 @@ GMOD_MODULE_OPEN() {
 }
 
 GMOD_MODULE_CLOSE() {
+    g_AddCSLuaFileRef = -1;
+
     // Deinitialize lua detouring
     ILuaInterfaceProxy::Singleton->Deinit();
     delete ILuaInterfaceProxy::Singleton;

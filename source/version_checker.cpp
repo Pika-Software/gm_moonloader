@@ -14,6 +14,13 @@ class VersionCheckCallback;
 std::unique_ptr<VersionCheckCallback> g_pVersionCheckCallback;
 ISteamHTTP* g_pSteamHTTP = nullptr;
 
+bool IsVersionGreater(int major, int minor, int patch) {
+    if (MOONLOADER_VERSION_MAJOR != major) return MOONLOADER_VERSION_MAJOR < major;
+    if (MOONLOADER_VERSION_MINOR != minor) return MOONLOADER_VERSION_MINOR < minor;
+    if (MOONLOADER_VERSION_PATCH != patch) return MOONLOADER_VERSION_PATCH < patch;
+    return false;
+}
+
 class VersionCheckCallback {
 public:
     void OnHTTPRequestComplete(HTTPRequestCompleted_t* pCallback, bool bIOFailure);
@@ -26,14 +33,12 @@ void VersionCheckCallback::OnHTTPRequestComplete(HTTPRequestCompleted_t* pCallba
         g_pSteamHTTP->GetHTTPResponseBodyData(pCallback->m_hRequest, (uint8*)buffer, pCallback->m_unBodySize);
 
         int major, minor, patch;
-        if (sscanf(buffer, "%d.%d.%d", &major, &minor, &patch) == 3) {
-            if (MOONLOADER_VERSION_MAJOR < major || MOONLOADER_VERSION_MINOR < minor || MOONLOADER_VERSION_PATCH < patch) {
-                Msg("[Mooloader] New version available: %d.%d.%d -> %d.%d.%d (%s)\n", 
-                    MOONLOADER_VERSION_MAJOR, MOONLOADER_VERSION_MINOR, MOONLOADER_VERSION_PATCH,
-                    major, minor, patch,
-                    MOONLOADER_URL
-                );
-            }
+        if (sscanf(buffer, "%d.%d.%d", &major, &minor, &patch) == 3 && IsVersionGreater(major, minor, patch)) {
+            Msg("[Mooloader] New version available: %d.%d.%d -> %d.%d.%d (%s)\n", 
+                MOONLOADER_VERSION_MAJOR, MOONLOADER_VERSION_MINOR, MOONLOADER_VERSION_PATCH,
+                major, minor, patch,
+                MOONLOADER_URL
+            );
         }
     }
 
