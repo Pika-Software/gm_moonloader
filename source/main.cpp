@@ -221,10 +221,8 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
         // File stored in cache/moonloader, so it must be our compiled script?
         if (Utils::StartsWith(ar->short_src, "cache/moonloader/lua")) {
             // Yeah, that's weird path transversies, but it works
-            std::string path = g_pFilesystem->RelativeToFullPath(ar->short_src, "GAME");
-            path = g_pFilesystem->FullToRelativePath(path, GMOD_LUA_PATH_ID);
+            std::string path = g_pFilesystem->TransverseRelativePath(ar->short_src, "GAME", GMOD_LUA_PATH_ID);
             Filesystem::SetFileExtension(path, "moon");
-            Filesystem::Normalize(path);
 
             auto debugInfo = g_pCompiler->GetDebugInfo(path);
             if (debugInfo) {
