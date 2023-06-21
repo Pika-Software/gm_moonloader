@@ -26,7 +26,14 @@ namespace MoonEngine {
 
         void RunLua(const char* luaCode);
         std::string CompileString(const char* moonCode, size_t len, CompiledLines* lineTable = nullptr);
-        std::string CompileString(std::string_view moonCode, CompiledLines* lineTable = nullptr);
+        std::string CompileString(std::string_view moonCode, CompiledLines* lineTable = nullptr) {
+            return CompileString(moonCode.data(), moonCode.size(), lineTable);
+        }
+
+        bool CompileStringEx(const char* moonCode, size_t len, std::string& output, CompiledLines* lineTable = nullptr);
+        bool CompileStringEx(std::string_view moonCode, std::string& output, CompiledLines* lineTable = nullptr) {
+            return CompileStringEx(moonCode.data(), moonCode.size(), output, lineTable);
+        }
     };
 }
 

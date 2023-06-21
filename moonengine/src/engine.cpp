@@ -101,40 +101,55 @@ void Engine::RunLua(const char* luaCode) {
     lua_pop(m_State, 1);
 }
 
-std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len, CompiledLines* lineTable) {
-    if (m_ToLuaRef == 0) { return {}; }
-
-    lua_pushcfunction(m_State, xpcall_errhandler);
-    lua_rawgeti(m_State, LUA_REGISTRYINDEX, m_ToLuaRef);
-    lua_pushlstring(m_State, moonCode, len);
-    if (lua_pcall(m_State, 1, 2, -3) != LUA_OK) {
-        lua_pop(m_State, 2);
-        return {};
+bool MoonEngine::Engine::CompileStringEx(const char* moonCode, size_t len, std::string& output, CompiledLines* lineTable) {
+    if (m_ToLuaRef <= 0) {
+        output = "Moonengine isn't initialized";
+        return false; 
     }
 
     const char* result = nullptr;
+    size_t resultLen = 0;
+
+    lua_rawgeti(m_State, LUA_REGISTRYINDEX, m_ToLuaRef);
+    lua_pushlstring(m_State, moonCode, len);
+    if (lua_pcall(m_State, 1, 2, 0) != LUA_OK) {
+        // Error while calling function
+        // Ideally shouldn't happen
+        result = lua_tolstring(m_State, -1, &resultLen);
+        output = std::string(result, resultLen);
+        lua_pop(m_State, 1);
+        return false;
+    }
+
     if (lua_type(m_State, -2) == LUA_TSTRING) {
-        result = lua_tostring(m_State, -2);
-        
+        // First argument is string, so it's success
+        result = lua_tolstring(m_State, -2, &resultLen);
+        output = std::string(result, resultLen);
+
         if (lineTable != nullptr && lua_type(m_State, -1) == LUA_TTABLE) {
             lua_pushnil(m_State);
             while (lua_next(m_State, -2) != 0) {
-                size_t line = lua_tointeger(m_State, -2);
-                size_t pos = lua_tointeger(m_State, -1);
+                size_t line = lua_tonumber(m_State, -2);
+                size_t pos = lua_tonumber(m_State, -1);
                 lineTable->insert_or_assign(line, pos);
                 lua_pop(m_State, 1);
             }
         }
-    } else if (lua_type(m_State, -1) == LUA_TSTRING) {
-        // Error happened :(
-        const char* err = lua_tostring(m_State, -1);
-        Warning("[MoonEngine] %s\n", err);
+        return true;
+    } else {
+        // First argument is nil, so it's error
+        result = lua_tolstring(m_State, -1, &resultLen);
+        output = std::string(result, resultLen);
+        return false;
     }
-
-    lua_pop(m_State, 3);
-    return result != nullptr ? result : std::string{};
 }
 
-std::string Engine::CompileString(std::string_view moonCode, CompiledLines* lineTable) {
-    return CompileString(moonCode.data(), moonCode.size(), lineTable);
+std::string MoonEngine::Engine::CompileString(const char* moonCode, size_t len, CompiledLines* lineTable) {
+    std::string result;
+    bool success = CompileStringEx(moonCode, len, result, lineTable);
+    if (!success) {
+        Warning("[MoonEngine] %s\n", result.c_str());
+    }
+
+    return result;
 }
