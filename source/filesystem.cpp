@@ -159,6 +159,11 @@ namespace MoonLoader {
         return written == len;
     }
 
+    size_t Filesystem::GetFileTime(const std::string& path, const char* pathID) {
+        std::lock_guard<std::mutex> lock(m_IOLock);
+        return m_InternalFS->GetFileTime(path.c_str(), pathID);
+    }
+
     // ---------------------------- FileFinder ----------------------------
     Filesystem::FileFinder::iterator Filesystem::FileFinder::INVALID_ITERATOR = {};
 

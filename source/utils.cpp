@@ -1,4 +1,8 @@
 #include "utils.hpp"
+#include "global.hpp"
+#include "filesystem.hpp"
+
+#include <GarrysMod/Lua/LuaInterface.h>
 
 using namespace MoonLoader;
 
@@ -33,4 +37,23 @@ bool Utils::RunHook(GarrysMod::Lua::ILuaBase* LUA, const std::string& hookName, 
     }
 
     return true;
+}
+
+bool Utils::FindMoonScript(std::string& path) {
+    std::string moonPath = path;
+    Utils::SetFileExtension(moonPath, "moon");
+
+    const char* currentDir = g_pLua->GetPath();
+    if (currentDir) {
+        std::string absolutePath = Utils::JoinPaths(currentDir, moonPath);
+        if (g_pFilesystem->Exists(absolutePath, GMOD_LUA_PATH_ID)) {
+            path = std::move(absolutePath);
+            return true;
+        }
+    }
+    if (g_pFilesystem->Exists(moonPath, GMOD_LUA_PATH_ID)) {
+        path = std::move(moonPath);
+        return true;
+    }
+    return false;
 }

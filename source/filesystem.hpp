@@ -65,6 +65,8 @@ namespace MoonLoader {
 
         std::vector<char> ReadBinaryFile(const std::string& path, const char* pathID = 0);
         bool WriteToFile(const std::string& path, const char* pathID, const void* data, size_t len);
+
+        size_t GetFileTime(const std::string& path, const char* pathID = 0);
     };
 
     class Filesystem::FileFinder {

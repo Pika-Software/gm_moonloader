@@ -58,7 +58,7 @@ execute_process(
 )
 
 project(gm_moonloader 
-    VERSION 1.1.1
+    VERSION 1.2.0
     LANGUAGES CXX 
     HOMEPAGE_URL "https://github.com/Pika-Software/gm_moonloader"
 )

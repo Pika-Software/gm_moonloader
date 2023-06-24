@@ -13,6 +13,7 @@
 #include <GarrysMod/InterfacePointers.hpp>
 #include <detouring/hook.hpp>
 #include <GarrysMod/ModuleLoader.hpp>
+#include <GarrysMod/FactoryLoader.hpp>
 #include <unordered_set>
 #include <steam/steam_api.h>
 
@@ -99,22 +100,10 @@ namespace LuaFuncs {
             }
 
             std::string targetFile = LUA->GetString(1);
-            Filesystem::SetFileExtension(targetFile, "moon");
-
-            const char* currentDir = g_pLua->GetPath();
-            if (currentDir) {
-                std::string absolutePath = Utils::JoinPaths(currentDir, targetFile);
-                if (g_pFilesystem->IsFile(absolutePath, GMOD_LUA_PATH_ID)) {
-                    targetFile = absolutePath;
-                }
-            }
-
-            if (g_pFilesystem->IsFile(targetFile, GMOD_LUA_PATH_ID) && !g_pCompiler->IsCompiled(targetFile)) {
-                // Compile the file only if it exists and it's not already compiled
+            if (Utils::FindMoonScript(targetFile)) {
                 g_pCompiler->CompileMoonScript(targetFile);
+                Filesystem::SetFileExtension(targetFile, "lua");
             }
-
-            Filesystem::SetFileExtension(targetFile, "lua");
 
             LUA->ReferencePush(g_AddCSLuaFileRef);
             LUA->PushString(targetFile.c_str());
@@ -141,73 +130,116 @@ public:
         Call(&GarrysMod::Lua::ILuaInterface::Cycle);
         if (This() == g_pLua) {
             g_pWatchdog->Think(); // Watch for file changes
+            #if !OSX
             SteamAPI_RunCallbacks();
+            #endif
         }
     }
 
-    virtual bool FindAndRunScript(const char* _fileName, bool run, bool showErrors, const char* runReason, bool noReturns) {
-        // Just for safety
-        if (_fileName == NULL)
-            return false;
-
-        std::string fileName = _fileName;
-
-        // Only do compilation in our realm
-        // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
-        if (This() == g_pLua) {
-            bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
-            bool isReload = strcmp(runReason, "!RELOAD") == 0
-                || strcmp(runReason, "!UNKNOWN") == 0
-                || strcmp(runReason, "") == 0;
-
-            if (isMoonScript) {
-                // Change to .lua, so we will load compiled version
-                Filesystem::SetFileExtension(fileName, "lua");
-            }
-            
-            // Path to .moon script
-            std::string moonPath = fileName;
-            Filesystem::SetFileExtension(moonPath, "moon");
-
-            if (g_pFilesystem->IsFile(runReason, "GAME")) {
-                // First we need to check if we are loading .moon script
-                // relative to the current script
-                std::string baseDir = g_pFilesystem->TransverseRelativePath(runReason, "GAME", GMOD_LUA_PATH_ID);
-                Filesystem::StripFileName(baseDir);
-                std::string fullMoonPath = Utils::JoinPaths(baseDir, moonPath);
-                if (g_pFilesystem->IsFile(fullMoonPath, GMOD_LUA_PATH_ID)) {
-                    moonPath = fullMoonPath;
-                }
-            }
-
-            // First, check if file exists
-            if (g_pFilesystem->IsFile(moonPath, GMOD_LUA_PATH_ID)) {
-                // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
-                // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.
-                // Also ignore .lua files that we didn't included
-                bool wasIncluded = g_IncludedFiles.find(moonPath) != g_IncludedFiles.end();
-                if (isReload) {
-                    if (!isMoonScript)
-                        return false;
-
-                    if (!wasIncluded) {
-                        DevWarning("[Moonloader] %s was not included before, ignoring auto-reload request\n", moonPath.c_str());
-                        return false;
-                    }
-                }
-
-                if (!g_pCompiler->CompileMoonScript(moonPath)) {
-                    Warning("[Moonloader] Failed to compile %s\n", moonPath.c_str());
-                    return false;
-                }
-
-                if (!wasIncluded) {
-                    g_IncludedFiles.insert(moonPath);
-                }
-            }
+    virtual bool FindAndRunScript(const char* fileName, bool run, bool showErrors, const char* runReason, bool noReturns) {
+        if (This() != g_pLua || fileName == NULL) {
+            return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
         }
 
-        return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName.c_str(), run, showErrors, runReason, noReturns);
+        std::string path = fileName;
+        if (Utils::FindMoonScript(path)) {
+            g_pCompiler->CompileMoonScript(path);
+
+            if (runReason[0] != '!') {
+                // Usually when runReason doesn't start with "!",
+                // it means that it was included by "include"
+                // Allow auto-reloads for this guy in a future
+                g_IncludedFiles.insert(path);
+            }
+
+            if (strcmp(runReason, "!RELOAD") == 0) {
+                // All my homies hate auto-reloads by gmod
+                return false;
+            }
+
+            if (strcmp(runReason, "!MOONRELOAD") == 0) {
+                // Auto-reloads by moonloader is da best defacto
+                runReason = "!RELOAD";
+                if (g_IncludedFiles.find(path) == g_IncludedFiles.end()) {
+                    // File wasn't included before? *heavy voice* Not good.
+                    return false;
+                }
+            }
+
+            // Alrighty, everything safe and we can with no worries compile moonscript! Yay!
+            g_pCompiler->CompileMoonScript(path);
+
+            path = fileName; // Preserve original file path for the god's sake
+            Utils::SetFileExtension(path, "lua"); // Do not forget to pass lua file to gmod!!
+        }
+
+
+        return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, path.c_str(), run, showErrors, runReason, noReturns);
+
+    //     // Just for safety
+    //     if (_fileName == NULL)
+    //         return false;
+
+    //     std::string fileName = _fileName;
+
+    //     Msg("LOAD %s [%s] <- (%s) %d %d\n", _fileName, runReason, g_pLua->GetPath(), run, noReturns);
+
+    //     // Only do compilation in our realm
+    //     // Hmm, maybe it would be cool if you load moonloader in menu state, and then you can use it in server or client state for example
+    //     if (This() == g_pLua) {
+    //         bool isMoonScript = Filesystem::FileExtension(fileName) == "moon";
+    //         bool isReload = strcmp(runReason, "!RELOAD") == 0
+    //             || strcmp(runReason, "!UNKNOWN") == 0
+    //             || strcmp(runReason, "") == 0;
+
+    //         if (isMoonScript) {
+    //             // Change to .lua, so we will load compiled version
+    //             Filesystem::SetFileExtension(fileName, "lua");
+    //         }
+            
+    //         // Path to .moon script
+    //         std::string moonPath = fileName;
+    //         Filesystem::SetFileExtension(moonPath, "moon");
+
+    //         if (g_pFilesystem->IsFile(runReason, "GAME")) {
+    //             // First we need to check if we are loading .moon script
+    //             // relative to the current script
+    //             std::string baseDir = g_pFilesystem->TransverseRelativePath(runReason, "GAME", GMOD_LUA_PATH_ID);
+    //             Filesystem::StripFileName(baseDir);
+    //             std::string fullMoonPath = Utils::JoinPaths(baseDir, moonPath);
+    //             if (g_pFilesystem->IsFile(fullMoonPath, GMOD_LUA_PATH_ID)) {
+    //                 moonPath = fullMoonPath;
+    //             }
+    //         }
+
+    //         // First, check if file exists
+    //         if (g_pFilesystem->IsFile(moonPath, GMOD_LUA_PATH_ID)) {
+    //             // Ignore !RELOAD requests, otherwise we'll get stuck in a loop
+    //             // Writing to .lua files causes a reload, which causes a compile, which causes a reload, etc.
+    //             // Also ignore .lua files that we didn't included
+    //             bool wasIncluded = g_IncludedFiles.find(moonPath) != g_IncludedFiles.end();
+    //             if (isReload) {
+    //                 if (!isMoonScript)
+    //                     return false;
+
+    //                 if (!wasIncluded) {
+    //                     DevWarning("[Moonloader] %s was not included before, ignoring auto-reload request\n", moonPath.c_str());
+    //                     return false;
+    //                 }
+    //             }
+
+    //             if (!g_pCompiler->CompileMoonScript(moonPath)) {
+    //                 Warning("[Moonloader] Failed to compile %s\n", moonPath.c_str());
+    //                 return false;
+    //             }
+
+    //             if (!wasIncluded) {
+    //                 g_IncludedFiles.insert(moonPath);
+    //             }
+    //         }
+    //     }
+
+    //     return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName.c_str(), run, showErrors, runReason, noReturns);
     }
 
     static ILuaInterfaceProxy* Singleton;
@@ -240,7 +272,14 @@ GMOD_MODULE_OPEN() {
     g_pLua = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->GetPathID();
 
+#if !OSX
     g_pFullFileSystem = InterfacePointers::FileSystem();
+#else
+    {
+        SourceSDK::FactoryLoader fsModule("filesystem_stdio");
+        g_pFullFileSystem = fsModule.GetInterface<IFileSystem>(FILESYSTEM_INTERFACE_VERSION);
+    }
+#endif
     if (!g_pFullFileSystem)
         LUA->ThrowError("failed to get IFileSystem");
 
