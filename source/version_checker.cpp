@@ -1,4 +1,7 @@
 #include "global.hpp"
+
+#if !OSX
+
 #include "utils.hpp"
 #include "config.hpp"
 
@@ -73,3 +76,9 @@ void MoonLoader::StartVersionCheck(GarrysMod::Lua::ILuaInterface* LUA) {
         LUA->Pop();
     }
 }
+
+#else
+
+void MoonLoader::StartVersionCheck(GarrysMod::Lua::ILuaInterface* LUA) {}
+
+#endif

@@ -18,6 +18,8 @@ namespace MoonLoader {
             std::string fullSourcePath;
             std::string compiledPath;
             std::string fullCompiledPath;
+
+            size_t lastFileModification;
         };
 
     private:
@@ -34,7 +36,9 @@ namespace MoonLoader {
             return m_CompiledFiles.find(path) != m_CompiledFiles.end();
         }
 
-        bool CompileMoonScript(std::string path);
+        bool WasModified(const std::string& path);
+
+        bool CompileMoonScript(std::string path, bool force = false);
     };
 }
 

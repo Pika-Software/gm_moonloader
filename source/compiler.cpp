@@ -22,7 +22,20 @@ size_t LookupLineFromOffset(std::string_view str, size_t offset) {
 }
 
 namespace MoonLoader {
-    bool Compiler::CompileMoonScript(std::string path) {
+    bool Compiler::WasModified(const std::string& path) {
+        size_t lastModification = g_pFilesystem->GetFileTime(path, GMOD_LUA_PATH_ID);
+        auto debug = GetDebugInfo(path);
+        if (debug) {
+            return debug->lastFileModification != lastModification;
+        }
+        return true;
+    }
+
+    bool Compiler::CompileMoonScript(std::string path, bool force) {
+        if (!force && !WasModified(path)) {
+            return true;
+        }
+
         auto readData = g_pFilesystem->ReadBinaryFile(path, GMOD_LUA_PATH_ID);
         if (readData.empty())
             return false;
@@ -60,6 +73,7 @@ namespace MoonLoader {
         debug.fullSourcePath = std::move(fullSourcePath);
         debug.compiledPath = std::move(compiledPath);
         debug.fullCompiledPath = std::move(fullCompiledPath);
+        debug.lastFileModification = g_pFilesystem->GetFileTime(debug.sourcePath, GMOD_LUA_PATH_ID);
 
         for (auto it = lines.begin(); it != lines.end(); ++it) {
             debug.lines.insert_or_assign(it->first, LookupLineFromOffset({ readData.data(), readData.size() }, it->second));

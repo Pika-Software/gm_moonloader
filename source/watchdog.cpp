@@ -97,7 +97,7 @@ void Watchdog::Think() {
 
             // Moonloader should automatically recompile script, if needed
             // And then run it
-            g_pLua->FindAndRunScript(path.c_str(), true, true, "!RELOAD", true);
+            g_pLua->FindAndRunScript(path.c_str(), true, true, "!MOONRELOAD", true);
 
             m_ModifiedFileDelays[path] = currentTimestamp + 200; // Add 200ms delay, before we can reload file again
         }

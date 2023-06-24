@@ -42,6 +42,17 @@ namespace MoonLoader::Utils {
 
         return path.substr(0, pos);
     }
+    // dir/file.ext -> file.ext
+    inline std::string_view FileName(std::string_view path) {
+        auto namePos = path.find_first_of("/\\");
+        return namePos != std::string_view::npos ? path.substr(namePos + 1) : path;
+    }
+    // dir/file.ext -> ext
+    inline std::string_view FileExtension(std::string_view path) {
+        auto fileName = FileName(path);
+        auto extPos = !fileName.empty() ? fileName.find_first_of('.') : std::string_view::npos;
+        return extPos != std::string_view::npos ? fileName.substr(extPos + 1) : std::string_view{};
+    }
     // dir + subdir/file.ext -> dir/subdir/file.ext
     inline std::string JoinPaths(std::string_view path, std::string_view subPath) {
         if (path.empty())
@@ -52,12 +63,27 @@ namespace MoonLoader::Utils {
             return std::string(path) + std::string(subPath);
         return std::string(path) + '/' + std::string(subPath);
     }
+    // dir/file.ext -> dir/file
+    inline void StripFileExtension(std::string& path) {
+        auto namePos = path.find_last_of('.');
+        size_t slashPos = path.find_last_of("/\\");
+        if (namePos != std::string::npos && (slashPos == std::string::npos || namePos > slashPos)) 
+            path.erase(namePos);
+    }
+    // dir/file.ext + .bak -> dir/file.bak
+    inline void SetFileExtension(std::string& path, std::string_view ext) {
+        if (FileExtension(path) == ext) return;
+        StripFileExtension(path);
+        if (!ext.empty() && ext.front() != '.') path += '.';
+        path += ext;
+    }
 
     // ---------------------------
     // - Lua utils               -
     // ---------------------------
     void FindValue(GarrysMod::Lua::ILuaBase* LUA, std::string_view path);
     bool RunHook(GarrysMod::Lua::ILuaBase* LUA, const std::string& hookName, int nArgs, int nReturns);
+    bool FindMoonScript(std::string& path);
 
     // ---------------------------
     // - Other                   -
