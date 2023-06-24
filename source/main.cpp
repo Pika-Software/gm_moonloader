@@ -130,7 +130,7 @@ public:
         Call(&GarrysMod::Lua::ILuaInterface::Cycle);
         if (This() == g_pLua) {
             g_pWatchdog->Think(); // Watch for file changes
-            #if !OSX
+            #if 0
             SteamAPI_RunCallbacks();
             #endif
         }
