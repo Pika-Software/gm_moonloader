@@ -1,6 +1,6 @@
 #include "global.hpp"
 
-#if !OSX
+#if 0
 
 #include "utils.hpp"
 #include "config.hpp"
