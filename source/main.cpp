@@ -61,15 +61,23 @@ IFileSystem* LoadFilesystem() {
 #ifdef CLIENT_DLL
     return InterfacePointers::Internal::Client::FileSystem();
 #else
-    IFileSystem* ptr;
-    if ((ptr = LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
-        return ptr;
+    // IFileSystem* ptr;
+    // if ((ptr = LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+    //     return ptr;
     
-    if ((ptr = LoadInterface<IFileSystem>("dedicated", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
-        return ptr;
+    // if ((ptr = LoadInterface<IFileSystem>("dedicated", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+    //     return ptr;
     
-    if ((ptr = LoadInterface<IFileSystem>("server", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
-        return ptr;
+    // if ((ptr = LoadInterface<IFileSystem>("server", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+    //     return ptr;
+
+    auto stdio = LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION);
+    auto dedicated = LoadInterface<IFileSystem>("dedicated", FILESYSTEM_INTERFACE_VERSION);
+    auto server = LoadInterface<IFileSystem>("server", FILESYSTEM_INTERFACE_VERSION);
+    Msg("stdio: %p\n", stdio);
+    Msg("dedicated: %p\n", dedicated);
+    Msg("server: %p\n", server);
+    return InterfacePointers::Internal::Server::FileSystem();
 #endif
 }
 
