@@ -12,7 +12,6 @@ target_link_libraries(moonloader PRIVATE
     sourcesdk::common
     sourcesdk::tier0
     sourcesdk::tier1
-    # sourcesdk::steam_api
 
     efsw
     moonengine
