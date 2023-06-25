@@ -51,6 +51,28 @@ void CPreCacheDir(const std::string& startPath) {
     }
 }
 
+template<class T>
+T* LoadInterface(const char* moduleName, const char* version) {
+    SourceSDK::FactoryLoader module(moduleName);
+    return module.GetInterface<T>(version);
+}
+
+IFileSystem* LoadFilesystem() {
+#ifdef CLIENT_DLL
+    return InterfacePointers::Internal::Client::FileSystem();
+#else
+    IFileSystem* ptr;
+    if ((ptr = LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+        return ptr;
+    
+    if ((ptr = LoadInterface<IFileSystem>("dedicated", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+        return ptr;
+    
+    if ((ptr = LoadInterface<IFileSystem>("server", FILESYSTEM_INTERFACE_VERSION)) != nullptr) 
+        return ptr;
+#endif
+}
+
 namespace LuaFuncs {
     LUA_FUNCTION(ToLua) {
         LUA->CheckType(1, GarrysMod::Lua::Type::String);
@@ -202,14 +224,7 @@ GMOD_MODULE_OPEN() {
     g_pLua = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->GetPathID();
 
-#if 0
-    g_pFullFileSystem = InterfacePointers::FileSystem();
-#else
-    {
-        SourceSDK::FactoryLoader fsModule("filesystem_stdio");
-        g_pFullFileSystem = fsModule.GetInterface<IFileSystem>(FILESYSTEM_INTERFACE_VERSION);
-    }
-#endif
+    g_pFullFileSystem = LoadFilesystem();
     if (!g_pFullFileSystem)
         LUA->ThrowError("failed to get IFileSystem");
 
