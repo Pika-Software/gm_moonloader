@@ -292,10 +292,10 @@ GMOD_MODULE_CLOSE() {
         Warning("[Moonloader] Failed to destroy lua_getinfo detour\n");
 
     // Release all our interfaces
-    g_pWatchdog.release();
-    g_pCompiler.release();
-    g_pMoonEngine.release();
-    g_pFilesystem.release();
+    g_pWatchdog.reset();
+    g_pCompiler.reset();
+    g_pMoonEngine.reset();
+    g_pFilesystem.reset();
 
     return 0;
 }
