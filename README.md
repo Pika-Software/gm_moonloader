@@ -18,25 +18,20 @@ require "moonloader"
 ```
 2. Include your `.moon` file with `include`
 ```lua
--- you can use example/init.moon, but for sake of compability
+-- you can use example/init.moon, but for the sake of compability
 -- I suggest to use .lua instead of .moon
 include "example/init.lua" -- Will automatically generate .lua from .moon in garrysmod/cache/moonloader/lua
 ```
-3. (optional) before using `AddCSLuaFile` or finding lua files with `file.Find` I suggest to use `moonloader.PreCacheDir("yourdirectory")` to cache .lua files from all .moon files
+3. (optional) before using finding lua files with `file.Find` or reading them I suggest to use `moonloader.PreCacheDir("yourdirectory")` to compile .lua files from all .moon files
 
 ## Notes
 * Compiled `.moon` files are stored in `garrysmod/cache/moonloader/lua` folder. This folder is cleaned up after each startup.
-* To properly use `AddCSLuaFile`, precache folder with `moonloader.PreCacheFolder` before adding .lua file
-* `AddCSLuaFile` or `CompileFile` only supports `.lua` extensions, use precaching.
 
 ## Example
 ```lua
 -- autorun/example_autorun.lua
 if SERVER then
     require "moonloader"
-    if moonloader then
-        moonloader.PreCacheDir "example"
-    end
 end
 
 AddCSLuaFile "example/init.lua"
