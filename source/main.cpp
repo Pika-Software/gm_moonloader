@@ -15,7 +15,6 @@
 #include <GarrysMod/ModuleLoader.hpp>
 #include <GarrysMod/FactoryLoader.hpp>
 #include <unordered_set>
-#include <steam/steam_api.h>
 
 extern "C" {
     #include <lua.h>
@@ -130,9 +129,6 @@ public:
         Call(&GarrysMod::Lua::ILuaInterface::Cycle);
         if (This() == g_pLua) {
             g_pWatchdog->Think(); // Watch for file changes
-            #if 0
-            SteamAPI_RunCallbacks();
-            #endif
         }
     }
 
