@@ -4,39 +4,30 @@
 #include "filesystem.hpp"
 #include "utils.hpp"
 
-#include <efsw/efsw.hpp>
 #include <tier0/dbg.h>
 #include <chrono>
 #include <GarrysMod/Lua/LuaInterface.h>
 
 using namespace MoonLoader;
 
-class MoonLoader::WatchdogListener : public efsw::FileWatchListener {
-public:
-    void handleFileAction(efsw::WatchID watchid, const std::string& dir,
-        const std::string& filename, efsw::Action action,
-        std::string oldFilename) override 
-    {
-        // We only care about modified files
-        if (action == efsw::Actions::Modified) {
-            std::string path = dir + filename;
-            Filesystem::FixSlashes(path);
-            g_pWatchdog->OnFileModified(path);
-        }
+void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string& dir,
+    const std::string& filename, efsw::Action action,
+    std::string oldFilename
+) {
+    // We only care about modified files
+    if (action == efsw::Actions::Modified) {
+        std::string path = dir + filename;
+        Filesystem::FixSlashes(path);
+        g_pWatchdog->OnFileModified(path);
     }
-};
+}
 
 Watchdog::Watchdog() {
-    m_Watcher = new efsw::FileWatcher();
-    m_WatchdogListener = new WatchdogListener();
+    m_Watcher = std::make_unique<efsw::FileWatcher>();
+    m_WatchdogListener = std::make_unique<WatchdogListener>();
 
     // Launch watchdog in a separate thread
     m_Watcher->watch();
-}
-
-Watchdog::~Watchdog() {
-    delete m_Watcher;
-    delete m_WatchdogListener;
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
@@ -59,7 +50,7 @@ void Watchdog::WatchDirectory(const std::string& path) {
 
     DevMsg("[Moonloader] Watching for directory %s\n", path.c_str());
 
-    auto id = m_Watcher->addWatch(path.c_str(), m_WatchdogListener, false);
+    auto id = m_Watcher->addWatch(path.c_str(), m_WatchdogListener.get(), false);
     m_WatchIDs.insert_or_assign(path, id);
 }
 
