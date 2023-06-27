@@ -5,15 +5,17 @@
 #include "utils.hpp"
 #include "config.hpp"
 
-#include <moonengine/engine.hpp>
 #include <GarrysMod/Lua/Interface.h>
 #include <GarrysMod/Lua/LuaInterface.h>
-#include <detouring/classproxy.hpp>
-#include <filesystem.h>
 #include <GarrysMod/InterfacePointers.hpp>
-#include <detouring/hook.hpp>
-#include <GarrysMod/ModuleLoader.hpp>
 #include <GarrysMod/FactoryLoader.hpp>
+#include <GarrysMod/ModuleLoader.hpp>
+#include <GarrysMod/Lua/AutoReference.h>
+
+#include <moonengine/engine.hpp>
+#include <detouring/classproxy.hpp>
+#include <detouring/hook.hpp>
+#include <filesystem.h>
 #include <unordered_set>
 
 extern "C" {
@@ -24,7 +26,7 @@ const char* MoonLoader::GMOD_LUA_PATH_ID = nullptr;
 IFileSystem* g_pFullFileSystem = nullptr;
 Detouring::Hook lua_getinfo_hook;
 std::unordered_set<std::string> g_IncludedFiles;
-int g_AddCSLuaFileRef = -1;
+GarrysMod::Lua::AutoReference g_AddCSLuaFileRef;
 
 using namespace MoonLoader;
 
@@ -102,7 +104,7 @@ namespace LuaFuncs {
     }
 
     LUA_FUNCTION(AddCSLuaFile) {
-        if (g_AddCSLuaFileRef != -1) {
+        if (g_AddCSLuaFileRef) {
             if (!LUA->IsType(1, GarrysMod::Lua::Type::String)) {
                 LUA->ReferencePush(g_AddCSLuaFileRef);
                 LUA->Call(0, 0);
@@ -255,11 +257,11 @@ GMOD_MODULE_OPEN() {
 
     // Detour AddCSLuaFile
     if (g_pLua->IsServer()) {
-        LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
-        if (LUA->IsType(-1, GarrysMod::Lua::Type::Function))
-            g_AddCSLuaFileRef = LUA->ReferenceCreate();
-        else
-            LUA->Pop();
+        if (!g_AddCSLuaFileRef) {
+            LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+            if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) g_AddCSLuaFileRef = GarrysMod::Lua::AutoReference(LUA);
+            else LUA->Pop();
+        }
 
         LUA->PushCFunction(LuaFuncs::AddCSLuaFile);
         LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
@@ -279,7 +281,7 @@ GMOD_MODULE_OPEN() {
 }
 
 GMOD_MODULE_CLOSE() {
-    g_AddCSLuaFileRef = -1;
+    g_AddCSLuaFileRef.Free();
 
     // Deinitialize lua detouring
     ILuaInterfaceProxy::Singleton->Deinit();
