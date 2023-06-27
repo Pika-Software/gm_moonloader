@@ -52,6 +52,16 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# Get the current working branch
+if(NOT DEFINED GIT_BRANCH)
+    execute_process(
+        COMMAND git rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
 project(gm_moonloader 
     VERSION 1.2.0
     LANGUAGES CXX 

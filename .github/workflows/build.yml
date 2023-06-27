@@ -36,7 +36,8 @@ jobs:
           cmake -B build -S . -A Win32 `
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" `
             -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF `
+            -DGIT_BRANCH="release"
 
       - name: '[x32] Build project (Serverside)'
         run: cmake --build build --config Release -j -t moonloader
@@ -60,7 +61,8 @@ jobs:
           cmake -B build64 -S . -A x64 `
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" `
             -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF `
+            -DGIT_BRANCH="release"
 
       - name: '[x64] Build project (Serverside)'
         run: cmake --build build64 --config Release -j -t moonloader
@@ -104,7 +106,8 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" \
             -DAUTOINSTALL="." \
             -DBUILD_SHARED_LIBS=OFF \
-            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"
+            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" \
+            -DGIT_BRANCH="release"
 
       - name: '[x32] Build project (Serverside)'
         run: cmake --build build --config Release -j -t moonloader
@@ -128,7 +131,8 @@ jobs:
           cmake -B build64 -S . \
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGIT_BRANCH="release"
 
       - name: '[x64] Build project (Serverside)'
         run: cmake --build build64 --config Release -j -t moonloader
@@ -167,7 +171,8 @@ jobs:
           cmake -B build64 -S . \
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGIT_BRANCH="release"
 
       - name: '[x64] Build project (Serverside)'
         run: cmake --build build64 --config Release -j -t moonloader

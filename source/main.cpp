@@ -210,7 +210,7 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 }
 
 GMOD_MODULE_OPEN() {
-    DevMsg("Moonloader %s-%s made by Pika-Software (%s)\n", MOONLOADER_VERSION, MOONLOADER_GIT_HASH, MOONLOADER_URL);
+    DevMsg("Moonloader %s made by Pika-Software (%s)\n", MOONLOADER_FULL_VERSION, MOONLOADER_URL);
 
     g_pLua = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->GetPathID();
@@ -244,7 +244,7 @@ GMOD_MODULE_OPEN() {
     LUA->CreateTable();
         LUA->PushString("gm_moonloader"); LUA->SetField(-2, "_NAME");
         LUA->PushString("Pika-Software"); LUA->SetField(-2, "_AUTHORS");
-        LUA->PushString(MOONLOADER_VERSION "-" MOONLOADER_GIT_HASH); LUA->SetField(-2, "_VERSION");
+        LUA->PushString(MOONLOADER_FULL_VERSION); LUA->SetField(-2, "_VERSION");
         LUA->PushNumber(MOONLOADER_VERSION_MAJOR); LUA->SetField(-2, "_VERSION_MAJOR");
         LUA->PushNumber(MOONLOADER_VERSION_MINOR); LUA->SetField(-2, "_VERSION_MINOR");
         LUA->PushNumber(MOONLOADER_VERSION_PATCH); LUA->SetField(-2, "_VERSION_PATCH");
