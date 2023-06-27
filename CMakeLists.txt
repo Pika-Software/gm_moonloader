@@ -28,11 +28,6 @@ endif()
 # Include extensions
 add_subdirectory(cmake)
 
-# CmakeRC compiler
-file(DOWNLOAD "https://raw.githubusercontent.com/vector-of-bool/cmrc/master/CMakeRC.cmake"
-                 "${CMAKE_BINARY_DIR}/CMakeRC.cmake")
-include("${CMAKE_BINARY_DIR}/CMakeRC.cmake")
-
 # Entropia File System Watcher
 add_subdirectory(third-party/efsw)
 
