@@ -13,7 +13,10 @@ on:
       - '**.txt'
       - '.github/workflows/build.yml'
   workflow_dispatch:
-  pull_request:
+
+env:
+  GIT_BRANCH: ${{ env.GITHUB_REF_TYPE == 'branch' && env.GITHUB_REF_NAME || 'release' }}
+  BUILD_TYPE: ${{ (env.GITHUB_REF_TYPE != 'branch' || env.GITHUB_REF_NAME == 'main') && 'Release' || 'Debug' }}
 
 jobs:
   windows:
@@ -37,16 +40,16 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" `
             -DAUTOINSTALL="." `
             -DBUILD_SHARED_LIBS=OFF `
-            -DGIT_BRANCH="release"
+            -DGIT_BRANCH="%GIT_BRANCH%"
 
       - name: '[x32] Build project (Serverside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build --config %BUILD_TYPE% -j -t moonloader
 
       - name: '[x32] Configure project (Clientside)'
         run: cmake -B build -S . -DCLIENT_DLL=ON
 
       - name: '[x32] Build project (Clientside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build --config %BUILD_TYPE% -j -t moonloader
 
       - name: '[x64] Download garrysmod_common'
         uses: actions/checkout@v3
@@ -62,16 +65,16 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" `
             -DAUTOINSTALL="." `
             -DBUILD_SHARED_LIBS=OFF `
-            -DGIT_BRANCH="release"
+            -DGIT_BRANCH="%GIT_BRANCH%"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 --config %BUILD_TYPE% -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 --config %BUILD_TYPE% -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3
@@ -107,16 +110,17 @@ jobs:
             -DAUTOINSTALL="." \
             -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" \
-            -DGIT_BRANCH="release"
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x32] Build project (Serverside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build -j -t moonloader
 
       - name: '[x32] Configure project (Clientside)'
         run: cmake -B build -S . -DCLIENT_DLL=ON
 
       - name: '[x32] Build project (Clientside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build -j -t moonloader
 
       - name: '[x64] Download garrysmod_common'
         uses: actions/checkout@v3
@@ -132,16 +136,17 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
             -DBUILD_SHARED_LIBS=OFF \
-            -DGIT_BRANCH="release"
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3
@@ -172,16 +177,17 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
             -DBUILD_SHARED_LIBS=OFF \
-            -DGIT_BRANCH="release"
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3
