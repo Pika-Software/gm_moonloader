@@ -15,8 +15,8 @@ on:
   workflow_dispatch:
 
 env:
-  GIT_BRANCH: ${{ env.GITHUB_REF_TYPE == 'branch' && env.GITHUB_REF_NAME || 'release' }}
-  BUILD_TYPE: ${{ (env.GITHUB_REF_TYPE != 'branch' || env.GITHUB_REF_NAME == 'main') && 'Release' || 'Debug' }}
+  GIT_BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || 'release' }}
+  BUILD_TYPE: ${{ (github.ref_type != 'branch' || github.ref_name == 'main') && 'Release' || 'Debug' }}
 
 jobs:
   windows:
