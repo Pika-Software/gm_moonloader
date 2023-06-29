@@ -16,6 +16,7 @@
 #include <detouring/classproxy.hpp>
 #include <detouring/hook.hpp>
 #include <filesystem.h>
+#include <iserver.h>
 #include <unordered_set>
 
 extern "C" {
@@ -31,6 +32,8 @@ GarrysMod::Lua::AutoReference g_AddCSLuaFileRef;
 using namespace MoonLoader;
 
 GarrysMod::Lua::ILuaInterface* MoonLoader::g_pLua = nullptr;
+IServer* MoonLoader::g_pServer = nullptr;
+IVEngineServer* MoonLoader::g_pEngineServer = nullptr;
 std::unique_ptr<MoonEngine::Engine> MoonLoader::g_pMoonEngine;
 std::unique_ptr<Compiler> MoonLoader::g_pCompiler;
 std::unique_ptr<Watchdog> MoonLoader::g_pWatchdog;
@@ -216,8 +219,14 @@ GMOD_MODULE_OPEN() {
     MoonLoader::GMOD_LUA_PATH_ID = g_pLua->GetPathID();
 
     g_pFullFileSystem = LoadFilesystem();
-    if (!g_pFullFileSystem)
-        LUA->ThrowError("failed to get IFileSystem");
+    if (!g_pFullFileSystem) LUA->ThrowError("failed to get IFileSystem");
+
+#if IS_SERVERSIDE
+    g_pServer = InterfacePointers::Server();
+    if (!g_pServer) LUA->ThrowError("failed to get IServer");
+    g_pEngineServer = InterfacePointers::VEngineServer();
+    if (!g_pEngineServer) LUA->ThrowError("failed to get IVEngineServer");
+#endif
 
     g_pFilesystem = std::make_unique<Filesystem>(g_pFullFileSystem);
     g_pMoonEngine = std::make_unique<MoonEngine::Engine>();
@@ -240,6 +249,12 @@ GMOD_MODULE_OPEN() {
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader", "GAME", PATH_ADD_TO_HEAD);
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", MoonLoader::GMOD_LUA_PATH_ID, PATH_ADD_TO_HEAD);
     g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", "MOONLOADER", PATH_ADD_TO_HEAD);
+
+#if IS_SERVERSIDE
+    // Let singleplayer find compiled files
+    if (!g_pServer->IsMultiplayer())
+        g_pFullFileSystem->AddSearchPath("garrysmod/cache/moonloader/lua", "lcl", PATH_ADD_TO_HEAD);
+#endif
 
     LUA->CreateTable();
         LUA->PushString("gm_moonloader"); LUA->SetField(-2, "_NAME");

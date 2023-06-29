@@ -3,6 +3,9 @@
 
 #include <memory>
 
+class IServer;
+class IVEngineServer;
+
 namespace GarrysMod::Lua {
     class ILuaInterface;
 }
@@ -17,6 +20,8 @@ namespace MoonLoader {
     class Filesystem;
 
     extern GarrysMod::Lua::ILuaInterface* g_pLua;
+    extern IServer* g_pServer;
+    extern IVEngineServer* g_pEngineServer;
     extern std::unique_ptr<MoonEngine::Engine> g_pMoonEngine;
     extern std::unique_ptr<Compiler> g_pCompiler;
     extern std::unique_ptr<Watchdog> g_pWatchdog;
