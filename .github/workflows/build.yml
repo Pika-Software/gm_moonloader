@@ -84,6 +84,14 @@ jobs:
             ./*.dll
           if-no-files-found: error
 
+      - name: "Upload debug artifacts"
+        uses: actions/upload-artifact@v3
+        if: ${{ env.BUILD_TYPE == 'Debug' }}
+        with:
+          name: Windows
+          path: |
+            ./*.pdb
+
   linux:
     runs-on: ubuntu-20.04 # Using ubuntu 20.04 since we want to use old gcc version to ensure compatibility
     steps:
