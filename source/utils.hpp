@@ -3,12 +3,17 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <algorithm>
-#include <GarrysMod/Lua/LuaBase.h>
-#include <platform.h>
+#include <GarrysMod/Lua/LuaInterface.h>
 #include <chrono>
+
+#if IS_SERVERSIDE
+#include <GarrysMod/FactoryLoader.hpp>
+#include <GarrysMod/ModuleLoader.hpp>
+#endif
 
 namespace MoonLoader::Utils {
     // ---------------------------
@@ -78,20 +83,68 @@ namespace MoonLoader::Utils {
         path += ext;
     }
 
+    inline void RemovePrefix(std::string& str, std::string_view prefix) {
+        if (StartsWith(str, prefix))
+            str.erase(0, prefix.size());
+    }
+
     // ---------------------------
     // - Lua utils               -
     // ---------------------------
-    void FindValue(GarrysMod::Lua::ILuaBase* LUA, std::string_view path);
-    bool RunHook(GarrysMod::Lua::ILuaBase* LUA, const std::string& hookName, int nArgs, int nReturns);
-    bool FindMoonScript(std::string& path);
+    inline void FindValue(GarrysMod::Lua::ILuaBase* LUA, std::string_view path) {
+        size_t firstPos = 0;
+        size_t endPos = 0;
+        do {
+            firstPos = endPos;
+            endPos = path.find(".", endPos) + 1;
+            std::string name{ path.substr(firstPos, endPos != 0 ? endPos - firstPos - 1 : path.size()) };
+
+            LUA->GetField(firstPos == 0 ? GarrysMod::Lua::INDEX_GLOBAL : -1, name.c_str());
+            if (firstPos != 0) LUA->Remove(-2);
+            if (!LUA->IsType(-1, GarrysMod::Lua::Type::Table)) break;
+        } while (endPos != 0);
+    }
+    inline bool RunHook(GarrysMod::Lua::ILuaInterface* LUA, const std::string& hookName, int nArgs, int nReturns) {
+        FindValue(LUA, "hook.Run");
+        if (!LUA->IsType(-1, GarrysMod::Lua::Type::Function)) {
+            LUA->Pop();
+            return false;
+        }
+
+        LUA->Insert(-nArgs - 1);
+        LUA->PushString(hookName.c_str());
+        LUA->Insert(-nArgs - 1);
+        if (LUA->PCall(nArgs + 1, nReturns, 0) != 0) {
+            LUA->ErrorNoHalt("[MoonLoader] Failed to run hook '%s': %s\n", hookName.c_str(), LUA->GetString(-1));
+            LUA->Pop();
+            return false;
+        }
+
+        return true;
+    }
+    bool FindMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string& path);
 
     // ---------------------------
     // - Other                   -
     // ---------------------------
-    inline uint64 Timestamp() {
+    inline uint64_t Timestamp() {
         // Oh, yesss! I love one-liners!
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock().now().time_since_epoch()).count();
     }
+
+#if IS_SERVERSIDE
+    template<class T>
+    inline T* LoadInterface(const char* moduleName, const char* version) {
+        SourceSDK::FactoryLoader module(moduleName);
+        return module.GetInterface<T>(version);
+    }
+
+    template<class T = void>
+    inline T* LoadSymbol(const char* moduleName, const std::string& symbol) {
+        SourceSDK::ModuleLoader module(moduleName);
+        return reinterpret_cast<T*>(module.GetSymbol(symbol));
+    }
+#endif
 }
 
 #endif // MOONLOADER_UTILS_HPP

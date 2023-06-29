@@ -67,6 +67,9 @@ namespace MoonLoader {
         bool WriteToFile(const std::string& path, const char* pathID, const void* data, size_t len);
 
         size_t GetFileTime(const std::string& path, const char* pathID = 0);
+
+        void AddSearchPath(const std::string& path, const char* pathID = 0, bool addToFront = false);
+        void RemoveSearchPath(const std::string& path, const char* pathID = 0);
     };
 
     class Filesystem::FileFinder {

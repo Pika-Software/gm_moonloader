@@ -4,18 +4,33 @@ configure_file(config.hpp.in ${CMAKE_BINARY_DIR}/include/config.hpp)
 file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_CURRENT_LIST_DIR} *.cpp *.hpp)
 source_group(TREE ${CMAKE_CURRENT_LIST_DIR} PREFIX "Sources" FILES ${SOURCES})
 
-add_library(moonloader SHARED ${SOURCES})
-target_link_libraries(moonloader PRIVATE 
-    gmod::common
-    gmod::detouring
-    gmod::helpers_extended
-    sourcesdk::common
-    sourcesdk::tier0
-    sourcesdk::tier1
-
-    efsw
-    moonengine
+add_library(moonloader SHARED
+    # Minimal set of files for clientside
+    main.cpp 
+    global.hpp 
+    utils.hpp 
+    lua_api.cpp lua_api.hpp
 )
+if(NOT ${CLIENT_DLL})
+    target_sources(moonloader PRIVATE ${SOURCES})
+
+    target_link_libraries(moonloader PRIVATE
+        gmod::common
+        gmod::detouring
+        gmod::helpers_extended
+        sourcesdk::common
+        sourcesdk::tier0
+        sourcesdk::tier1
+
+        efsw
+        moonengine
+    )
+else()
+    target_link_libraries(moonloader PRIVATE
+        gmod::common
+        moonengine
+    )
+endif()
 
 target_include_directories(moonloader PRIVATE 
     ${CMAKE_CURRENT_LIST_DIR}

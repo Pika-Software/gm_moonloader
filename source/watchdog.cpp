@@ -18,7 +18,7 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
     if (action == efsw::Actions::Modified) {
         std::string path = dir + filename;
         Filesystem::FixSlashes(path);
-        g_pWatchdog->OnFileModified(path);
+        g_Watchdog->OnFileModified(path);
     }
 }
 
@@ -32,7 +32,7 @@ Watchdog::Watchdog() {
 
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
-    std::string relativePath = g_pFilesystem->FullToRelativePath(path, GMOD_LUA_PATH_ID);
+    std::string relativePath = g_Filesystem->FullToRelativePath(path, "lsv");
     Utils::NormalizePath(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);
@@ -59,7 +59,7 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
         // Our watchdog already registered here
         return;
 
-    std::string fullPath = g_pFilesystem->RelativeToFullPath(path, pathID);
+    std::string fullPath = g_Filesystem->RelativeToFullPath(path, pathID);
     Filesystem::Normalize(fullPath);
     Filesystem::StripFileName(fullPath);
     if (fullPath.empty()) {
@@ -72,7 +72,7 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
     m_WatchedFiles.insert(path.c_str());
 }
 
-void Watchdog::Think() {
+void Watchdog::Think(GarrysMod::Lua::ILuaInterface* LUA) {
     if (m_ModifiedFiles.empty())
         return;
 
@@ -88,7 +88,9 @@ void Watchdog::Think() {
 
             // Moonloader should automatically recompile script, if needed
             // And then run it
-            g_pLua->FindAndRunScript(path.c_str(), true, true, "!MOONRELOAD", true);
+            for (auto state : g_LuaStates) {
+                LUA->FindAndRunScript(path.c_str(), true, true, "!MOONRELOAD", true);
+            }
 
             m_ModifiedFileDelays[path] = currentTimestamp + 200; // Add 200ms delay, before we can reload file again
         }

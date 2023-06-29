@@ -22,8 +22,8 @@ size_t LookupLineFromOffset(std::string_view str, size_t offset) {
 }
 
 namespace MoonLoader {
-    bool Compiler::WasModified(const std::string& path) {
-        size_t lastModification = g_pFilesystem->GetFileTime(path, GMOD_LUA_PATH_ID);
+    bool Compiler::WasModified(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path) {
+        size_t lastModification = g_Filesystem->GetFileTime(path, LUA->GetPathID());
         auto debug = GetDebugInfo(path);
         if (debug) {
             return debug->lastFileModification != lastModification;
@@ -31,41 +31,41 @@ namespace MoonLoader {
         return true;
     }
 
-    bool Compiler::CompileMoonScript(std::string path, bool force) {
-        if (!force && !WasModified(path)) {
+    bool Compiler::CompileMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string path, bool force) {
+        if (!force && !WasModified(LUA, path)) {
             return true;
         }
 
-        auto readData = g_pFilesystem->ReadBinaryFile(path, GMOD_LUA_PATH_ID);
+        auto readData = g_Filesystem->ReadBinaryFile(path, LUA->GetPathID());
         if (readData.empty())
             return false;
 
         // Watch for changes of .moon file
-        g_pWatchdog->WatchFile(path, GMOD_LUA_PATH_ID);
+        g_Watchdog->WatchFile(path, LUA->GetPathID());
 
         MoonEngine::Engine::CompiledLines lines;
-        auto data = g_pMoonEngine->CompileString(readData.data(), readData.size(), &lines);
+        auto data = g_MoonEngine->CompileString(readData.data(), readData.size(), &lines);
         if (data.empty())
             return false;
 
         // Create directories for .lua file
         std::string dir = path;
-        g_pFilesystem->StripFileName(dir);
-        g_pFilesystem->CreateDirs(dir.c_str(), "MOONLOADER");
+        g_Filesystem->StripFileName(dir);
+        g_Filesystem->CreateDirs(dir.c_str(), "MOONLOADER");
 
         // Write compiled code to .lua file
         std::string compiledPath = path;
-        g_pFilesystem->SetFileExtension(compiledPath, "lua");
-        if (!g_pFilesystem->WriteToFile(compiledPath, "MOONLOADER", data.c_str(), data.size()))
+        g_Filesystem->SetFileExtension(compiledPath, "lua");
+        if (!g_Filesystem->WriteToFile(compiledPath, "MOONLOADER", data.c_str(), data.size()))
             return false;
 
         // Add debug information
-        std::string fullSourcePath = g_pFilesystem->RelativeToFullPath(path, GMOD_LUA_PATH_ID);
-        fullSourcePath = g_pFilesystem->FullToRelativePath(fullSourcePath, "garrysmod"); // Platform is the root directory of the game, after garrysmod/
+        std::string fullSourcePath = g_Filesystem->RelativeToFullPath(path, LUA->GetPathID());
+        fullSourcePath = g_Filesystem->FullToRelativePath(fullSourcePath, "garrysmod"); // Platform is the root directory of the game, after garrysmod/
         Filesystem::Normalize(fullSourcePath);
 
-        std::string fullCompiledPath = g_pFilesystem->RelativeToFullPath(path, "MOONLOADER");
-        fullCompiledPath = g_pFilesystem->FullToRelativePath(fullCompiledPath, "garrysmod");
+        std::string fullCompiledPath = g_Filesystem->RelativeToFullPath(path, "MOONLOADER");
+        fullCompiledPath = g_Filesystem->FullToRelativePath(fullCompiledPath, "garrysmod");
         Filesystem::Normalize(fullCompiledPath);
 
         MoonDebug debug {};
@@ -73,7 +73,7 @@ namespace MoonLoader {
         debug.fullSourcePath = std::move(fullSourcePath);
         debug.compiledPath = std::move(compiledPath);
         debug.fullCompiledPath = std::move(fullCompiledPath);
-        debug.lastFileModification = g_pFilesystem->GetFileTime(debug.sourcePath, GMOD_LUA_PATH_ID);
+        debug.lastFileModification = g_Filesystem->GetFileTime(debug.sourcePath, LUA->GetPathID());
 
         for (auto it = lines.begin(); it != lines.end(); ++it) {
             debug.lines.insert_or_assign(it->first, LookupLineFromOffset({ readData.data(), readData.size() }, it->second));
@@ -82,8 +82,8 @@ namespace MoonLoader {
         m_CompiledFiles.insert_or_assign(debug.sourcePath, debug);
 
         // Notice lua about compiled file
-        g_pLua->PushString(debug.sourcePath.c_str());
-        Utils::RunHook(g_pLua, "MoonFileCompiled", 1, 0);
+        LUA->PushString(debug.sourcePath.c_str());
+        Utils::RunHook(LUA, "MoonFileCompiled", 1, 0);
 
         return true;
     }

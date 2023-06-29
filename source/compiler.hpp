@@ -1,11 +1,14 @@
 #ifndef MOONLOADER_COMPILER_HPP
 #define MOONLOADER_COMPILER_HPP
 
+#pragma once
+
 #include <unordered_map>
 #include <unordered_set>
 #include <string>
 #include <string_view>
 #include <optional>
+#include <GarrysMod/Lua/LuaInterface.h>
 
 namespace MoonLoader {
     class Compiler {
@@ -36,9 +39,9 @@ namespace MoonLoader {
             return m_CompiledFiles.find(path) != m_CompiledFiles.end();
         }
 
-        bool WasModified(const std::string& path);
+        bool WasModified(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path);
 
-        bool CompileMoonScript(std::string path, bool force = false);
+        bool CompileMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string path, bool force = false);
     };
 }
 

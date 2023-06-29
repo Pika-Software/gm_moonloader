@@ -164,6 +164,15 @@ namespace MoonLoader {
         return m_InternalFS->GetFileTime(path.c_str(), pathID);
     }
 
+    void Filesystem::AddSearchPath(const std::string& path, const char* pathID, bool addToFront) {
+        std::lock_guard<std::mutex> lock(m_IOLock);
+        g_pFullFileSystem->AddSearchPath(path.c_str(), pathID, addToFront ? PATH_ADD_TO_HEAD : PATH_ADD_TO_TAIL);
+    }
+    void Filesystem::RemoveSearchPath(const std::string& path, const char* pathID) {
+        std::lock_guard<std::mutex> lock(m_IOLock);
+        g_pFullFileSystem->RemoveSearchPath(path.c_str(), pathID);
+    }
+
     // ---------------------------- FileFinder ----------------------------
     Filesystem::FileFinder::iterator Filesystem::FileFinder::INVALID_ITERATOR = {};
 
