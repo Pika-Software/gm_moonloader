@@ -198,11 +198,12 @@ GMOD_MODULE_CLOSE() {
     GarrysMod::Lua::ILuaInterface* ILUA = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     g_InitializeCount--;
 
-    DevMsg("[Moonloader] [%s] Moonloader is shutting down... Bye bye\n", ILUA->IsServer() ? "Server" : ILUA->IsClient() ? "Client" : "Menu");
     
     LuaAPI::Deinitialize();
 
 #if IS_SERVERSIDE
+    DevMsg("[Moonloader] [%s] Moonloader is shutting down... Bye bye\n", ILUA->IsServer() ? "Server" : ILUA->IsClient() ? "Client" : "Menu");
+    
     g_LuaStates.erase(ILUA);
     g_IncludedFiles.erase(ILUA);
 

@@ -11,7 +11,7 @@ class IServer;
 class IVEngineServer;
 
 #if IS_SERVERSIDE
-#include <color.h>
+#include <Color.h>
 #include <unordered_set>
 #else
 struct Color {
