@@ -6,12 +6,18 @@
 #include <memory>
 #include <atomic>
 #include <GarrysMod/Lua/LuaInterface.h>
+#include <Platform.hpp>
 
 class IServer;
 class IVEngineServer;
 
 #if IS_SERVERSIDE
+#if ARCHITECTURE_IS_X86
 #include <Color.h>
+#else
+#include <color.h>
+#endif
+
 #include <unordered_set>
 #else
 struct Color {
