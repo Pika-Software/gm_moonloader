@@ -78,12 +78,12 @@ namespace MoonLoader {
 
     std::string Filesystem::RelativeToFullPath(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        bool success = g_pFullFileSystem->RelativePathToFullPath(path.c_str(), pathID, PathBuffer(), PathBufferSize()) != NULL;
+        bool success = m_InternalFS->RelativePathToFullPath(path.c_str(), pathID, PathBuffer(), PathBufferSize()) != NULL;
         return success ? std::string(PathBuffer()) : std::string{};
     }
     std::string Filesystem::FullToRelativePath(const std::string& fullPath, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        bool success = g_pFullFileSystem->FullPathToRelativePathEx(fullPath.c_str(), pathID, PathBuffer(), PathBufferSize());
+        bool success = m_InternalFS->FullPathToRelativePathEx(fullPath.c_str(), pathID, PathBuffer(), PathBufferSize());
         return success ? std::string(PathBuffer()) : std::string{};
     }
     std::string Filesystem::TransverseRelativePath(const std::string& relativePath, const char* fromPathID, const char* toPathID) {
@@ -132,30 +132,46 @@ namespace MoonLoader {
 
     void Filesystem::CreateDirs(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        g_pFullFileSystem->CreateDirHierarchy(path.c_str(), pathID);
+        m_InternalFS->CreateDirHierarchy(path.c_str(), pathID);
     }
 
     std::vector<char> Filesystem::ReadBinaryFile(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
         std::vector<char> result = {};
-        FileHandle_t fh = g_pFullFileSystem->Open(path.c_str(), "rb", pathID);
+        FileHandle_t fh = m_InternalFS->Open(path.c_str(), "rb", pathID);
         if (fh) {
-            int fileSize = g_pFullFileSystem->Size(fh);
+            int fileSize = m_InternalFS->Size(fh);
             result.resize(fileSize);
 
-            g_pFullFileSystem->Read(result.data(), result.size(), fh);
-            g_pFullFileSystem->Close(fh);
+            m_InternalFS->Read(result.data(), result.size(), fh);
+            m_InternalFS->Close(fh);
         }
         return result;
     }
+    std::string Filesystem::ReadTextFile(const std::string& path, const char* pathID) {
+        // Yeah, this is the same as ReadBinaryFile
+        // but also copies data to string
+        // I don't know how to return std::string without copying data
+        std::lock_guard<std::mutex> lock(m_IOLock);
+        std::vector<char> result = {};
+        FileHandle_t fh = m_InternalFS->Open(path.c_str(), "r", pathID);
+        if (fh) {
+            int fileSize = m_InternalFS->Size(fh);
+            result.resize(fileSize);
+
+            m_InternalFS->Read(result.data(), result.size(), fh);
+            m_InternalFS->Close(fh);
+        }
+        return { result.data(), result.size() };
+    }
     bool Filesystem::WriteToFile(const std::string& path, const char* pathID, const void* data, size_t len) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        FileHandle_t fh = g_pFullFileSystem->Open(path.c_str(), "wb", pathID);
+        FileHandle_t fh = m_InternalFS->Open(path.c_str(), "wb", pathID);
         if (!fh)
             return false;
 
-        int written = g_pFullFileSystem->Write(data, len, fh);
-        g_pFullFileSystem->Close(fh);
+        int written = m_InternalFS->Write(data, len, fh);
+        m_InternalFS->Close(fh);
         return written == len;
     }
 
@@ -166,11 +182,11 @@ namespace MoonLoader {
 
     void Filesystem::AddSearchPath(const std::string& path, const char* pathID, bool addToFront) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        g_pFullFileSystem->AddSearchPath(path.c_str(), pathID, addToFront ? PATH_ADD_TO_HEAD : PATH_ADD_TO_TAIL);
+        m_InternalFS->AddSearchPath(path.c_str(), pathID, addToFront ? PATH_ADD_TO_HEAD : PATH_ADD_TO_TAIL);
     }
     void Filesystem::RemoveSearchPath(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
-        g_pFullFileSystem->RemoveSearchPath(path.c_str(), pathID);
+        m_InternalFS->RemoveSearchPath(path.c_str(), pathID);
     }
 
     // ---------------------------- FileFinder ----------------------------
@@ -197,11 +213,11 @@ namespace MoonLoader {
         
         FileFindHandle_t findHandle;
         m_Filesystem->m_IOLock.lock();
-        const char* pFilename = g_pFullFileSystem->FindFirstEx(m_SearchWildcard.c_str(), m_PathID.c_str(), &findHandle);
+        const char* pFilename = m_Filesystem->m_InternalFS->FindFirstEx(m_SearchWildcard.c_str(), m_PathID.c_str(), &findHandle);
 
         while (pFilename != NULL && (strcmp(pFilename, ".") == 0 || strcmp(pFilename, "..") == 0)) {
             // Skip . and ..
-            pFilename = g_pFullFileSystem->FindNext(findHandle);
+            pFilename = m_Filesystem->m_InternalFS->FindNext(findHandle);
         }
         m_Filesystem->m_IOLock.unlock();
 
