@@ -10,6 +10,7 @@
 #include "compiler.hpp"
 #include "watchdog.hpp"
 #include "filesystem.hpp"
+#include "autorefresh.hpp"
 
 #include <GarrysMod/InterfacePointers.hpp>
 
@@ -30,7 +31,6 @@ std::atomic<int> MoonLoader::g_InitializeCount = 0;
 std::unique_ptr<MoonEngine::Engine> MoonLoader::g_MoonEngine;
 
 #if IS_SERVERSIDE
-IFileSystem* g_pFullFileSystem = nullptr;
 Detouring::Hook lua_getinfo_hook;
 std::unordered_map<GarrysMod::Lua::ILuaInterface*, std::unordered_set<std::string>> g_IncludedFiles;
 
@@ -96,7 +96,12 @@ public:
             }
 
             // Alrighty, everything safe and we can with no worries compile moonscript! Yay!
-            g_Compiler->CompileMoonScript(LUA, path);
+            if (g_Compiler->CompileMoonScript(LUA, path)) {
+                // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
+                if (strcmp(runReason, "!RELOAD") == 0) {
+                    AutoRefresh::Sync(path);
+                }
+            }
 
             path = fileName; // Preserve original file path for the god's sake
             Utils::SetFileExtension(path, "lua"); // Do not forget to pass lua file to gmod!!
@@ -147,8 +152,8 @@ GMOD_MODULE_OPEN() {
     if (g_LuaStates.find(ILUA) != g_LuaStates.end()) LUA->ThrowError("moonloader is already initialized for this lua state >:(");
     g_LuaStates.insert(ILUA);
 
-    g_pFullFileSystem = LoadFilesystem();
-    if (!g_pFullFileSystem)
+    IFileSystem* filesystem = LoadFilesystem();
+    if (!filesystem)
         LUA->ThrowError("failed to get filesystem interface");
 
     g_Server = InterfacePointers::Server();
@@ -156,12 +161,12 @@ GMOD_MODULE_OPEN() {
 
     if (g_InitializeCount == 1) {
         DevMsg("[Moonloader] Initializing...\n");
-        g_Filesystem = std::make_unique<Filesystem>(g_pFullFileSystem);
+        g_Filesystem = std::make_unique<Filesystem>(filesystem);
         g_Compiler = std::make_unique<Compiler>();
         g_Watchdog = std::make_unique<Watchdog>();
 
         DevMsg("[Moonloader] Interfaces:\n");
-        DevMsg("\t- IFilesystem: %p\n", g_pFullFileSystem);
+        DevMsg("\t- IFilesystem: %p\n", filesystem);
         DevMsg("\t- IServer: %p\n", g_Server);
         DevMsg("\t- IVEngineServer: %p\n", g_EngineServer);
 
@@ -189,6 +194,9 @@ GMOD_MODULE_OPEN() {
 
 #if IS_SERVERSIDE
     LuaAPI::BeginVersionCheck(ILUA);
+
+    if (ILUA->IsServer())
+        AutoRefresh::Initialize();
 #endif
 
     return 0;
@@ -211,6 +219,7 @@ GMOD_MODULE_CLOSE() {
         g_Filesystem->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl");
 
     if (ILUA->IsServer()) {
+        AutoRefresh::Deinitialize();
         g_Server = nullptr;
         g_EngineServer = nullptr;
     }

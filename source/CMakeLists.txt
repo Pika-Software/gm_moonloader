@@ -21,6 +21,7 @@ if(NOT ${CLIENT_DLL})
         sourcesdk::common
         sourcesdk::tier0
         sourcesdk::tier1
+        sourcesdk::lzma
 
         efsw
         moonengine
