@@ -168,6 +168,10 @@ GMOD_MODULE_OPEN() {
         ILuaInterfaceProxy::Singleton = std::make_unique<ILuaInterfaceProxy>();
         if (!ILuaInterfaceProxy::Singleton->Init(ILUA))
             Warning("[Moonloader] Failed to initialize lua detouring. include and CompileFile won't work :(\n");
+
+        //Detour lua_getinfo and lua_pcall, so we can manipulate error stack traces
+        lua_getinfo_hook.Create( Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour) );
+        if (!lua_getinfo_hook.Enable()) Warning("[Moonloader] Failed to detour lua_getinfo. Advanced error stack traces won't be enabled\n");
         
         DevMsg("[Moonloader] Removed %d files from cache\n", g_Filesystem->Remove(CACHE_PATH_LUA, "GAME"));
 
@@ -179,10 +183,6 @@ GMOD_MODULE_OPEN() {
     g_Filesystem->AddSearchPath("garrysmod/" CACHE_PATH_LUA, ILUA->GetPathID(), true);
     if (g_Server && !g_Server->IsMultiplayer())
         g_Filesystem->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
-
-    // Detour lua_getinfo and lua_pcall, so we can manipulate error stack traces
-    lua_getinfo_hook.Create( Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour) );
-    if (!lua_getinfo_hook.Enable()) Warning("[Moonloader] Failed to detour lua_getinfo. Advanced error stack traces won't be enabled\n");
 #endif
 
     LuaAPI::Initialize(ILUA);
@@ -198,7 +198,6 @@ GMOD_MODULE_CLOSE() {
     GarrysMod::Lua::ILuaInterface* ILUA = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     g_InitializeCount--;
 
-    
     LuaAPI::Deinitialize();
 
 #if IS_SERVERSIDE
@@ -225,6 +224,7 @@ GMOD_MODULE_CLOSE() {
 
         ILuaInterfaceProxy::Singleton->Deinit();
         ILuaInterfaceProxy::Singleton.reset();
+        lua_getinfo_hook.Disable();
         lua_getinfo_hook.Destroy();
 
         g_Watchdog.reset();
