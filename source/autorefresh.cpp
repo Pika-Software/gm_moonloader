@@ -17,6 +17,7 @@ void AutoRefresh::Deinitialize() {}
 #include <tier0/dbg.h>
 #include <eiface.h>
 #include <iserver.h>
+#include <array>
 #include <networkstringtabledefs.h>
 #include <LzmaLib.h>
 #include <Sha256.h>
