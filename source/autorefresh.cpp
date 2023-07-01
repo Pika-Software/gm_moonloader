@@ -7,7 +7,7 @@ using namespace MoonLoader;
 // If platform isn't OSX, no need in implementing anything
 
 #if !SYSTEM_IS_MACOSX
-bool Sync(std::string_view path) { return true; }
+bool AutoRefresh::Sync(std::string_view path) { return true; }
 void AutoRefresh::Initialize() {}
 void AutoRefresh::Deinitialize() {}
 #else
