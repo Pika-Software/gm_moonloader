@@ -35,7 +35,6 @@ Detouring::Hook lua_getinfo_hook;
 std::unordered_map<GarrysMod::Lua::ILuaInterface*, std::unordered_set<std::string>> g_IncludedFiles;
 
 std::unordered_set<GarrysMod::Lua::ILuaInterface*> MoonLoader::g_LuaStates;
-IServer* MoonLoader::g_Server = nullptr;
 IVEngineServer* MoonLoader::g_EngineServer = nullptr;
 std::unique_ptr<Compiler> MoonLoader::g_Compiler;
 std::unique_ptr<Watchdog> MoonLoader::g_Watchdog;
@@ -156,7 +155,6 @@ GMOD_MODULE_OPEN() {
     if (!filesystem)
         LUA->ThrowError("failed to get filesystem interface");
 
-    g_Server = InterfacePointers::Server();
     g_EngineServer = InterfacePointers::VEngineServer();
 
     if (g_InitializeCount == 1) {
@@ -167,7 +165,6 @@ GMOD_MODULE_OPEN() {
 
         DevMsg("[Moonloader] Interfaces:\n");
         DevMsg("\t- IFilesystem: %p\n", filesystem);
-        DevMsg("\t- IServer: %p\n", g_Server);
         DevMsg("\t- IVEngineServer: %p\n", g_EngineServer);
 
         ILuaInterfaceProxy::Singleton = std::make_unique<ILuaInterfaceProxy>();
@@ -186,7 +183,7 @@ GMOD_MODULE_OPEN() {
     }
 
     g_Filesystem->AddSearchPath("garrysmod/" CACHE_PATH_LUA, ILUA->GetPathID(), true);
-    if (g_Server && !g_Server->IsMultiplayer())
+    if (ILUA->IsServer())
         g_Filesystem->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
 #endif
 
@@ -215,12 +212,11 @@ GMOD_MODULE_CLOSE() {
     g_IncludedFiles.erase(ILUA);
 
     g_Filesystem->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, ILUA->GetPathID());
-    if (g_Server && !g_Server->IsMultiplayer())
+    if (ILUA->IsServer())
         g_Filesystem->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl");
 
     if (ILUA->IsServer()) {
         AutoRefresh::Deinitialize();
-        g_Server = nullptr;
         g_EngineServer = nullptr;
     }
 #endif

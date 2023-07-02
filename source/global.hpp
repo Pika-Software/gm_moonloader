@@ -53,7 +53,6 @@ namespace MoonLoader {
 
 #if IS_SERVERSIDE
     extern std::unordered_set<GarrysMod::Lua::ILuaInterface*> g_LuaStates;
-    extern IServer* g_Server;
     extern IVEngineServer* g_EngineServer;
     extern std::unique_ptr<Compiler> g_Compiler;
     extern std::unique_ptr<Watchdog> g_Watchdog;

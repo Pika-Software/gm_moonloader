@@ -113,10 +113,8 @@ inline void SendFileToClient(const std::string& path) {
 
     DevMsg("[Moonloader] Autorefreshing file %s (payload size %d bytes)\n", path.c_str(), writer.GetNumBytesWritten());
 
-    int clients = g_Server->GetClientCount();
-    for (int clientID = 0; clientID < clients; clientID++) {
-        g_EngineServer->GMOD_SendToClient(clientID, writer.GetData(), writer.GetNumBitsWritten());
-    }
+    // TODO: Send to all clients
+    g_EngineServer->GMOD_SendToClient(0, writer.GetData(), writer.GetNumBitsWritten());
 }
 
 bool AutoRefresh::Sync(std::string_view path) {
@@ -133,7 +131,7 @@ bool AutoRefresh::Sync(std::string_view path) {
 
 void AutoRefresh::Initialize() {
     DevMsg("[Moonloader] Fixing file autorefresh for OSX...\n");
-    if (g_EngineServer && g_Server) {
+    if (g_EngineServer) {
         INetworkStringTableContainer* container = Utils::LoadInterface<INetworkStringTableContainer>("engine", INTERFACENAME_NETWORKSTRINGTABLESERVER);
         if (container) g_ClientLuaFiles = container->FindTable("client_lua_files");
     }
