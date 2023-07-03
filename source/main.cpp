@@ -136,7 +136,9 @@ int lua_getinfo_detour(lua_State* L, const char* what, lua_Debug* ar) {
 
 GMOD_MODULE_OPEN() {
     GarrysMod::Lua::ILuaInterface* ILUA = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
-    ILUA->MsgColour(MESSAGE_COLOR, "Moonloader %s made by Pika-Software (%s)\n", MOONLOADER_FULL_VERSION, MOONLOADER_URL);
+    if (Utils::DeveloperEnabled(LUA)) {
+        ILUA->MsgColour(MESSAGE_COLOR, "Moonloader %s made by Pika-Software (%s)\n", MOONLOADER_FULL_VERSION, MOONLOADER_URL);
+    }
 
     if (!g_MoonEngine) g_MoonEngine = std::make_unique<MoonEngine::Engine>();
     if (!g_MoonEngine->IsInitialized())

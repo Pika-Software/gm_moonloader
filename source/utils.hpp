@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <chrono>
+#include <optional>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
@@ -121,6 +122,32 @@ namespace MoonLoader::Utils {
         }
 
         return true;
+    }
+    inline bool PopBool(GarrysMod::Lua::ILuaBase* LUA) {
+        bool value = LUA->GetBool(-1);
+        LUA->Pop();
+        return value;
+    }
+    inline std::optional<bool> LuaBoolFromValue(GarrysMod::Lua::ILuaBase* LUA, std::string_view path, int args) {
+        FindValue(LUA, path);
+        if (LUA->IsType(-1, GarrysMod::Lua::Type::Bool)) {
+            return PopBool(LUA);
+        }
+        else if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) {
+            LUA->Insert(-1 - args);
+            if (LUA->PCall(args, 1, 0) != 0) {
+                LUA->Pop();
+                return std::nullopt;
+            }
+            return PopBool(LUA);
+        }
+
+        LUA->Pop();
+        return std::nullopt;
+    }
+    inline bool DeveloperEnabled(GarrysMod::Lua::ILuaBase* LUA) {
+        LUA->PushString("developer");
+        return LuaBoolFromValue(LUA, "cvars.Bool", 1).value_or(false);
     }
     bool FindMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string& path);
 

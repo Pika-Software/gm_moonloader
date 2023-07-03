@@ -57,8 +57,6 @@ namespace MoonLoader {
     extern std::unique_ptr<Compiler> g_Compiler;
     extern std::unique_ptr<Watchdog> g_Watchdog;
     extern std::unique_ptr<Filesystem> g_Filesystem;
-
-
 #endif
 }
 
