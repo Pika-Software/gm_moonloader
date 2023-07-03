@@ -1,9 +1,9 @@
+#include "lua_api.hpp"
 #include "global.hpp"
 #include "utils.hpp"
 #include "config.hpp"
 
 #include <GarrysMod/Lua/Interface.h>
-#include <GarrysMod/Lua/LuaInterface.h>
 
 using namespace MoonLoader;
 
@@ -17,6 +17,7 @@ bool IsVersionGreater(int major, int minor, int patch) {
 }
 
 LUA_FUNCTION(ValidateVersion) {
+    GarrysMod::Lua::ILuaInterface* ILUA = reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA);
     unsigned int bodySize = 0;
     const char* body = LUA->GetString(1, &bodySize);
     int code = LUA->GetNumber(4);
@@ -24,7 +25,7 @@ LUA_FUNCTION(ValidateVersion) {
     if (code == 200 || bodySize <= MAX_VERSION_LENGTH) {
         int major, minor, patch;
         if (sscanf(body, "%d.%d.%d", &major, &minor, &patch) == 3 && IsVersionGreater(major, minor, patch)) {
-            Msg("[Mooloader] New version available: %d.%d.%d -> %d.%d.%d (%s)\n", 
+            ILUA->MsgColour(MESSAGE_COLOR, "[Mooloader] New version available: %d.%d.%d -> %d.%d.%d (%s)\n", 
                 MOONLOADER_VERSION_MAJOR, MOONLOADER_VERSION_MINOR, MOONLOADER_VERSION_PATCH,
                 major, minor, patch,
                 MOONLOADER_URL
@@ -45,7 +46,7 @@ LUA_FUNCTION(CheckVersion) {
     return 0;
 }
 
-void MoonLoader::StartVersionCheck(GarrysMod::Lua::ILuaInterface* LUA) {
+void LuaAPI::BeginVersionCheck(GarrysMod::Lua::ILuaInterface* LUA) {
     Utils::FindValue(LUA, "timer.Simple");
     LUA->PushNumber(5); // Only check for an update after 5 seconds
     LUA->PushCFunction(CheckVersion);

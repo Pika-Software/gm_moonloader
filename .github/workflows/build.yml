@@ -13,7 +13,10 @@ on:
       - '**.txt'
       - '.github/workflows/build.yml'
   workflow_dispatch:
-  pull_request:
+
+env:
+  GIT_BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || 'release' }}
+  BUILD_TYPE: ${{ (github.ref_type != 'branch' || github.ref_name == 'main') && 'Release' || 'Debug' }}
 
 jobs:
   windows:
@@ -36,16 +39,17 @@ jobs:
           cmake -B build -S . -A Win32 `
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" `
             -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF `
+            -DGIT_BRANCH="$env:GIT_BRANCH"
 
       - name: '[x32] Build project (Serverside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build --config $env:BUILD_TYPE -j -t moonloader
 
       - name: '[x32] Configure project (Clientside)'
         run: cmake -B build -S . -DCLIENT_DLL=ON
 
       - name: '[x32] Build project (Clientside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build --config $env:BUILD_TYPE -j -t moonloader
 
       - name: '[x64] Download garrysmod_common'
         uses: actions/checkout@v3
@@ -60,16 +64,17 @@ jobs:
           cmake -B build64 -S . -A x64 `
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" `
             -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF `
+            -DGIT_BRANCH="$env:GIT_BRANCH"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 --config $env:BUILD_TYPE -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 --config $env:BUILD_TYPE -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3
@@ -78,6 +83,14 @@ jobs:
           path: |
             ./*.dll
           if-no-files-found: error
+
+      - name: "Upload debug artifacts"
+        uses: actions/upload-artifact@v3
+        if: ${{ env.BUILD_TYPE == 'Debug' }}
+        with:
+          name: Windows
+          path: |
+            ./*.pdb
 
   linux:
     runs-on: ubuntu-20.04 # Using ubuntu 20.04 since we want to use old gcc version to ensure compatibility
@@ -104,16 +117,18 @@ jobs:
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" \
             -DAUTOINSTALL="." \
             -DBUILD_SHARED_LIBS=OFF \
-            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"
+            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" \
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x32] Build project (Serverside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build -j -t moonloader
 
       - name: '[x32] Configure project (Clientside)'
         run: cmake -B build -S . -DCLIENT_DLL=ON
 
       - name: '[x32] Build project (Clientside)'
-        run: cmake --build build --config Release -j -t moonloader
+        run: cmake --build build -j -t moonloader
 
       - name: '[x64] Download garrysmod_common'
         uses: actions/checkout@v3
@@ -128,16 +143,18 @@ jobs:
           cmake -B build64 -S . \
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3
@@ -167,16 +184,18 @@ jobs:
           cmake -B build64 -S . \
             -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
             -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF
+            -DBUILD_SHARED_LIBS=OFF \
+            -DGIT_BRANCH="$GIT_BRANCH" \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
       - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: '[x64] Configure project (Clientside)'
         run: cmake -B build64 -S . -DCLIENT_DLL=ON
 
       - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config Release -j -t moonloader
+        run: cmake --build build64 -j -t moonloader
 
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v3

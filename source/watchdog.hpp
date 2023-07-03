@@ -10,12 +10,7 @@
 #include <mutex>
 #include <tier0/platform.h>
 #include <efsw/efsw.hpp>
-#include <tier0/dbg.h>
-
-namespace efsw {
-    class FileWatcher;
-    typedef long WatchID;
-}
+#include <GarrysMod/Lua/LuaInterface.h>
 
 namespace MoonLoader {
     class WatchdogListener : public efsw::FileWatchListener {
@@ -46,7 +41,7 @@ namespace MoonLoader {
         // Directory path must be absolute
         void WatchDirectory(const std::string& path);
         void WatchFile(const std::string& path, const char* pathID);
-        void Think();
+        void Think(GarrysMod::Lua::ILuaInterface* LUA);
     };
 }
 

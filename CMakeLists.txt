@@ -28,11 +28,6 @@ endif()
 # Include extensions
 add_subdirectory(cmake)
 
-# CmakeRC compiler
-file(DOWNLOAD "https://raw.githubusercontent.com/vector-of-bool/cmrc/master/CMakeRC.cmake"
-                 "${CMAKE_BINARY_DIR}/CMakeRC.cmake")
-include("${CMAKE_BINARY_DIR}/CMakeRC.cmake")
-
 # Entropia File System Watcher
 add_subdirectory(third-party/efsw)
 
@@ -57,8 +52,18 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+# Get the current working branch
+if(NOT DEFINED GIT_BRANCH)
+    execute_process(
+        COMMAND git rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        OUTPUT_VARIABLE GIT_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
 project(gm_moonloader 
-    VERSION 1.2.0
+    VERSION 1.3.0
     LANGUAGES CXX 
     HOMEPAGE_URL "https://github.com/Pika-Software/gm_moonloader"
 )
