@@ -214,10 +214,9 @@ GMOD_MODULE_CLOSE() {
     g_IncludedFiles.erase(ILUA);
 
     g_Filesystem->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, ILUA->GetPathID());
-    if (ILUA->IsServer())
+    if (ILUA->IsServer()) {
         g_Filesystem->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl");
 
-    if (ILUA->IsServer()) {
         AutoRefresh::Deinitialize();
         g_EngineServer = nullptr;
     }

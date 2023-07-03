@@ -21,11 +21,14 @@ if(NOT ${CLIENT_DLL})
         sourcesdk::common
         sourcesdk::tier0
         sourcesdk::tier1
-        sourcesdk::lzma
 
         efsw
         moonengine
     )
+
+    if(APPLE)
+        target_link_libraries(moonloader PRIVATE sourcesdk::lzma)
+    endif()
 else()
     target_link_libraries(moonloader PRIVATE
         gmod::common
