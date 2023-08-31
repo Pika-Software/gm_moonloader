@@ -62,8 +62,9 @@ if(NOT DEFINED GIT_BRANCH)
     )
 endif()
 
+file(STRINGS "VERSION" GM_MOONLOADER_VERSION)
 project(gm_moonloader 
-    VERSION 1.3.0
+    VERSION ${GM_MOONLOADER_VERSION}
     LANGUAGES CXX 
     HOMEPAGE_URL "https://github.com/Pika-Software/gm_moonloader"
 )
