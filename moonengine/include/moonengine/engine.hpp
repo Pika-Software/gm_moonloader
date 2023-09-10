@@ -4,25 +4,26 @@
 #include <string>
 #include <string_view>
 #include <map>
+#include <memory>
 
 struct lua_State;
 
 namespace MoonEngine {
+    struct LuaStateDeleter {
+        void operator()(lua_State* L);
+    };
+
     class Engine {
     public:
         // Compiled line number = original char offset
         typedef std::map<size_t, size_t> CompiledLines;
 
     private:
-        lua_State* m_State = nullptr;
-        bool m_Initialized = false;
-
+        std::unique_ptr<lua_State, LuaStateDeleter> m_State;
         int m_ToLuaRef = 0;
+
     public:
         Engine();
-        ~Engine();
-
-        bool IsInitialized() { return m_Initialized; }
 
         void RunLua(const char* luaCode);
         std::string CompileString(const char* moonCode, size_t len, CompiledLines* lineTable = nullptr);

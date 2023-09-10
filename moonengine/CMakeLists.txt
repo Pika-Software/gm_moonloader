@@ -24,8 +24,6 @@ target_link_libraries(moonengine PRIVATE
     moonengine::resources
     lua::lib
     lpeg
-
-    sourcesdk::tier1
 )
 
 target_include_directories(moonengine PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)

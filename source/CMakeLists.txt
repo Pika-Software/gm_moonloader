@@ -8,7 +8,8 @@ add_library(moonloader SHARED
     # Minimal set of files for clientside
     main.cpp 
     global.hpp 
-    utils.hpp 
+    utils.hpp
+    core.cpp core.hpp
     lua_api.cpp lua_api.hpp
 )
 if(NOT ${CLIENT_DLL})

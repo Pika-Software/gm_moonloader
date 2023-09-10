@@ -8,9 +8,17 @@
 #include <string>
 #include <string_view>
 #include <optional>
+#include <memory>
 #include <GarrysMod/Lua/LuaInterface.h>
 
+namespace MoonEngine {
+    class Engine;
+}
+
 namespace MoonLoader {
+    class Filesystem;
+    class Watchdog;
+
     class Compiler {
     public:
         struct MoonDebug {
@@ -26,9 +34,15 @@ namespace MoonLoader {
         };
 
     private:
+        std::shared_ptr<Filesystem> fs;
+        std::shared_ptr<MoonEngine::Engine> moonengine;
+        std::shared_ptr<Watchdog> watchdog;
         std::unordered_map<std::string, MoonDebug> m_CompiledFiles;
 
     public:
+        Compiler(std::shared_ptr<Filesystem> fs, std::shared_ptr<MoonEngine::Engine> moonengine, std::shared_ptr<Watchdog> watchdog) 
+            : fs(fs), moonengine(moonengine), watchdog(watchdog) {}
+
         // Gets debug info for compiled .moon file (in LUA directory)
         inline std::optional<MoonDebug> GetDebugInfo(const std::string& path) {
             auto it = m_CompiledFiles.find(path);

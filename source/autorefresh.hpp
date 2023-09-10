@@ -4,11 +4,22 @@
 #pragma once
 
 #include <string_view>
+#include <memory>
 
-namespace MoonLoader::AutoRefresh {
-    bool Sync(std::string_view path);
-    void Initialize();
-    void Deinitialize();
+class INetworkStringTable;
+
+namespace MoonLoader {
+    class Core;
+
+    class AutoRefresh {
+        std::shared_ptr<Core> core;
+        INetworkStringTable* client_files = nullptr;
+
+    public:
+        AutoRefresh(std::shared_ptr<Core> core);
+
+        bool Sync(std::string_view path);
+    };
 }
 
 #endif // MOONLOADER_AUTOREFRESH_HPP

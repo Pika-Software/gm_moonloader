@@ -3,6 +3,7 @@
 #include "compiler.hpp"
 #include "filesystem.hpp"
 #include "utils.hpp"
+#include "core.hpp"
 
 #include <tier0/dbg.h>
 #include <chrono>
@@ -18,21 +19,19 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
     if (action == efsw::Actions::Modified) {
         std::string path = dir + filename;
         Filesystem::FixSlashes(path);
-        g_Watchdog->OnFileModified(path);
+        if (auto watchdog = this->watchdog.lock())
+            watchdog->OnFileModified(path);
     }
 }
 
-Watchdog::Watchdog() {
-    m_Watcher = std::make_unique<efsw::FileWatcher>();
-    m_WatchdogListener = std::make_unique<WatchdogListener>();
-
+Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs) : core(core), fs(fs) {
     // Launch watchdog in a separate thread
     m_Watcher->watch();
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
-    std::string relativePath = g_Filesystem->FullToRelativePath(path, "lsv");
+    std::string relativePath = fs->FullToRelativePath(path, "lsv");
     Utils::NormalizePath(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);
@@ -52,6 +51,7 @@ void Watchdog::WatchDirectory(const std::string& path) {
 
     auto id = m_Watcher->addWatch(path.c_str(), m_WatchdogListener.get(), false);
     m_WatchIDs.insert_or_assign(path, id);
+    m_WatchdogListener->watchdog = weak_from_this();
 }
 
 void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID) {
@@ -59,7 +59,7 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
         // Our watchdog already registered here
         return;
 
-    std::string fullPath = g_Filesystem->RelativeToFullPath(path, pathID);
+    std::string fullPath = fs->RelativeToFullPath(path, pathID);
     Filesystem::Normalize(fullPath);
     Filesystem::StripFileName(fullPath);
     if (fullPath.empty()) {
@@ -72,7 +72,7 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
     m_WatchedFiles.insert(path.c_str());
 }
 
-void Watchdog::Think(GarrysMod::Lua::ILuaInterface* LUA) {
+void Watchdog::Think() {
     if (m_ModifiedFiles.empty())
         return;
 
@@ -88,9 +88,7 @@ void Watchdog::Think(GarrysMod::Lua::ILuaInterface* LUA) {
 
             // Moonloader should automatically recompile script, if needed
             // And then run it
-            for (auto state : g_LuaStates) {
-                LUA->FindAndRunScript(path.c_str(), true, true, "!MOONRELOAD", true);
-            }
+            core->LUA->FindAndRunScript(path.c_str(), true, true, "!MOONRELOAD", true);
 
             m_ModifiedFileDelays[path] = currentTimestamp + 200; // Add 200ms delay, before we can reload file again
         }

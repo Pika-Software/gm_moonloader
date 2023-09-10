@@ -7,13 +7,12 @@ using namespace MoonLoader;
 // If platform isn't OSX, no need in implementing anything
 
 #if !SYSTEM_IS_MACOSX
-bool AutoRefresh::Sync(std::string_view path) { return true; }
-void AutoRefresh::Initialize() {}
-void AutoRefresh::Deinitialize() {}
+// should i add something here?
 #else
 #include "global.hpp"
 #include "utils.hpp"
 #include "filesystem.hpp"
+#include "core.hpp"
 #include <tier0/dbg.h>
 #include <eiface.h>
 #include <iserver.h>
@@ -21,8 +20,6 @@ void AutoRefresh::Deinitialize() {}
 #include <networkstringtabledefs.h>
 #include <LzmaLib.h>
 #include <Sha256.h>
-
-INetworkStringTable* g_ClientLuaFiles = nullptr;
 
 inline size_t MaximumCompressedSize(size_t inputSize) {
     return (inputSize+1) + (inputSize+1) / 3 + 128;
@@ -86,8 +83,8 @@ std::vector<char> Compress(const std::string& input) {
     return output;
 }
 
-inline void SendFileToClient(const std::string& path) {
-    std::string fileData = g_Filesystem->ReadTextFile(path, "GAME");
+inline void SendFileToClient(std::shared_ptr<Core> core, const std::string& path) {
+    std::string fileData = core->fs->ReadTextFile(path, "GAME");
     if (fileData.empty()) return;
 
     const auto compressedData = Compress(fileData);
@@ -114,32 +111,28 @@ inline void SendFileToClient(const std::string& path) {
     DevMsg("[Moonloader] Autorefreshing file %s (payload size %d bytes)\n", path.c_str(), writer.GetNumBytesWritten());
 
     // TODO: Send to all clients
-    g_EngineServer->GMOD_SendToClient(0, writer.GetData(), writer.GetNumBitsWritten());
+    core->engine_server->GMOD_SendToClient(0, writer.GetData(), writer.GetNumBitsWritten());
 }
 
 bool AutoRefresh::Sync(std::string_view path) {
-    if (!g_ClientLuaFiles) return false;
+    if (!client_files) return false;
     std::string fullPath = Utils::JoinPaths(CACHE_PATH_LUA, path);
     Utils::SetFileExtension(fullPath, "lua");
 
-    int fileID = g_ClientLuaFiles->FindStringIndex(fullPath.c_str());
+    int fileID = client_files->FindStringIndex(fullPath.c_str());
     if (fileID == (uint16)-1) return false;
 
-    SendFileToClient(fullPath);
+    SendFileToClient(core, fullPath);
     return true;
 }
 
-void AutoRefresh::Initialize() {
+AutoRefresh::AutoRefresh(std::shared_ptr<Core> core) : core(core) {
     DevMsg("[Moonloader] Fixing file autorefresh for OSX...\n");
-    if (g_EngineServer) {
+    if (core->engine_server) {
         INetworkStringTableContainer* container = Utils::LoadInterface<INetworkStringTableContainer>("engine", INTERFACENAME_NETWORKSTRINGTABLESERVER);
-        if (container) g_ClientLuaFiles = container->FindTable("client_lua_files");
+        if (container) client_files = container->FindTable("client_lua_files");
     }
-    if (!g_ClientLuaFiles) Warning("[Moonloader] Failed to find stringtable for fixing autorefresh :(\n");
-}
-
-void AutoRefresh::Deinitialize() {
-    g_ClientLuaFiles = nullptr;
+    if (!client_files) throw std::runtime_error("Failed to find client_lua_files string table");
 }
 
 #endif

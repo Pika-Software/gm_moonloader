@@ -158,6 +158,16 @@ namespace MoonLoader::Utils {
         // Oh, yesss! I love one-liners!
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock().now().time_since_epoch()).count();
     }
+    // https://stackoverflow.com/a/2342176/11635796
+    template<typename ... Args>
+    std::string Format(const std::string& format, Args ... args) {
+        int size_s = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+        if (size_s <= 0) { throw std::runtime_error("Error during formatting."); }
+        auto size = static_cast<size_t>(size_s);
+        std::unique_ptr<char[]> buf(new char[size]);
+        std::snprintf(buf.get(), size, format.c_str(), args ...);
+        return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+    }
 
 #if IS_SERVERSIDE
     template<class T>
