@@ -117,16 +117,6 @@ int lua_getinfo_detour_func(lua_State* L, const char* what, lua_Debug* ar) {
     }
     return 0;
 }
-
-inline void DetourLuaGetInfo(MoonLoader::Core* core) {
-    core->lua_getinfo_detour = std::make_shared<Detouring::Hook>();
-    void* symbol = MoonLoader::Utils::LoadSymbol("lua_shared", "lua_getinfo");
-    if (symbol == nullptr) throw std::runtime_error("can't find lua_getinfo symbol");
-    if (!core->lua_getinfo_detour->Create(symbol, reinterpret_cast<void*>(&lua_getinfo_detour_func)))
-        throw std::runtime_error("can't create lua_getinfo detour");
-    if (!core->lua_getinfo_detour->Enable())
-        throw std::runtime_error("can't enable lua_getinfo detour");
-}
 #endif
 
 using namespace MoonLoader;

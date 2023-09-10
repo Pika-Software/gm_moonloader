@@ -44,8 +44,8 @@ namespace MoonLoader {
         watchdog->WatchFile(path, LUA->GetPathID());
 
         MoonEngine::Engine::CompiledLines lines;
-        auto data = moonengine->CompileString(readData.data(), readData.size(), &lines);
-        if (data.empty())
+        std::string data;
+        if (!moonengine->CompileStringEx(readData.data(), data.size(), data, &lines) || data.empty())
             return false;
 
         // Create directories for .lua file
