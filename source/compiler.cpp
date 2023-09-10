@@ -45,8 +45,8 @@ namespace MoonLoader {
 
         MoonEngine::Engine::CompiledLines lines;
         std::string data;
-        if (!moonengine->CompileStringEx(readData.data(), data.size(), data, &lines)) {
-            Warning("[Moonloader] Compilation of '%s' failed: %s", path.c_str(), data.c_str());
+        if (!moonengine->CompileStringEx(readData.data(), readData.size(), data, &lines)) {
+            Warning("[Moonloader] Compilation of '%s' failed:\n%s\n", path.c_str(), data.c_str());
             return false;
         }
 
