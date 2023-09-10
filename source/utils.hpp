@@ -10,6 +10,7 @@
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <chrono>
 #include <optional>
+#include <memory>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
