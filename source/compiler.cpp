@@ -45,8 +45,10 @@ namespace MoonLoader {
 
         MoonEngine::Engine::CompiledLines lines;
         std::string data;
-        if (!moonengine->CompileStringEx(readData.data(), data.size(), data, &lines) || data.empty())
+        if (!moonengine->CompileStringEx(readData.data(), data.size(), data, &lines)) {
+            Warning("[Moonloader] Compilation of '%s' failed: %s", path.c_str(), data.c_str());
             return false;
+        }
 
         // Create directories for .lua file
         std::string dir = path;
