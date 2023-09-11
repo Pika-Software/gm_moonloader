@@ -2,17 +2,49 @@
 #include "config.hpp"
 #include "global.hpp"
 #include "core.hpp"
+#include "utils.hpp"
 
 #include <GarrysMod/Lua/Interface.h>
 #include <moonengine/engine.hpp>
+#include <yuescript/yue_compiler.h>
 
 #if IS_SERVERSIDE
 #include "compiler.hpp"
-#include "utils.hpp"
 #include "filesystem.hpp"
 #endif
 
 using namespace MoonLoader;
+
+inline void ParseYueConfig(GarrysMod::Lua::ILuaBase* LUA, yue::YueConfig& config, int index) {
+    using namespace GarrysMod::Lua;
+
+    LUA->GetField(index, "lint_global"); 
+    if (LUA->IsType(-1, Type::Bool)) config.lintGlobalVariable = LUA->GetBool(-1); LUA->Pop();
+    LUA->GetField(index, "implicit_return_root"); 
+    if (LUA->IsType(-1, Type::Bool)) config.implicitReturnRoot = LUA->GetBool(-1); LUA->Pop();
+    LUA->GetField(index, "reserve_line_number"); 
+    if (LUA->IsType(-1, Type::Bool)) config.reserveLineNumber = LUA->GetBool(-1); LUA->Pop();
+    LUA->GetField(index, "reserve_comment"); 
+    if (LUA->IsType(-1, Type::Bool)) config.reserveComment = LUA->GetBool(-1); LUA->Pop();
+    LUA->GetField(index, "space_over_tab"); 
+    if (LUA->IsType(-1, Type::Bool)) config.useSpaceOverTab = LUA->GetBool(-1); LUA->Pop();
+    LUA->GetField(index, "options");
+    if (LUA->IsType(-1, Type::Table)) {
+        LUA->PushNil();
+        while (LUA->Next(-2) != 0) {
+            auto key = std::string(Utils::GetString(LUA, -2));
+            auto value = std::string(Utils::GetString(LUA, -1));
+            config.options[key] = value;
+            LUA->Pop();
+        }
+        LUA->Pop();
+    }
+    LUA->Pop();
+    LUA->GetField(index, "line_offset");
+    if (LUA->IsType(-1, Type::Number)) config.lineOffset = static_cast<int>(LUA->GetNumber(-1)); LUA->Pop();
+    LUA->GetField(index, "module");
+    if (LUA->IsType(-1, Type::String)) config.module = std::string(Utils::GetString(LUA, -1)); LUA->Pop();
+}
 
 namespace Functions {
     LUA_FUNCTION(EmptyFunc) {
@@ -20,7 +52,7 @@ namespace Functions {
     }
 
     LUA_FUNCTION(ToLua) {
-        if (auto core = Core::Get(LUA)) {
+        if (auto core = Core::Get(LUA); core && core->moonengine) {
             LUA->CheckType(1, GarrysMod::Lua::Type::String);
             unsigned int codeLen = 0;
             const char* code = LUA->GetString(1, &codeLen);
@@ -46,6 +78,48 @@ namespace Functions {
             }
 
             return 2;
+        }
+        return 0;
+    }
+
+    LUA_FUNCTION(YueToLua) {
+        LUA->CheckType(1, GarrysMod::Lua::Type::String);
+        if (LUA->Top() >= 2) LUA->CheckType(2, GarrysMod::Lua::Type::Table);
+        if (auto core = Core::Get(LUA); core && core->yuecompiler) { 
+            auto input = Utils::GetString(LUA, 1);
+            yue::YueConfig config;
+            if (LUA->Top() >= 2) ParseYueConfig(LUA, config, 2);
+
+            auto result = core->yuecompiler->compile(input, config);
+            if (result.error) LUA->PushNil();
+            else Utils::PushString(LUA, result.codes);
+            if (result.error) Utils::PushString(LUA, result.error->displayMessage);
+            else LUA->PushNil();
+
+            if (result.globals) {
+                LUA->CreateTable();
+                double i = 1;
+                for (const auto& var : *result.globals) {
+                    LUA->PushNumber(i);
+                    LUA->CreateTable();
+
+                    LUA->PushNumber(1);
+                    Utils::PushString(LUA, var.name);
+                    LUA->SetTable(-3);
+
+                    LUA->PushNumber(2);
+                    LUA->PushNumber(var.line);
+                    LUA->SetTable(-3);
+
+                    LUA->PushNumber(1);
+                    LUA->PushNumber(var.col);
+                    LUA->SetTable(-3);
+
+                    LUA->SetTable(-3);
+                    i++;
+                }
+            } else LUA->PushNil();
+            return 3;
         }
         return 0;
     }
@@ -88,6 +162,10 @@ void LuaAPI::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     LUA->PushCFunction(Functions::ToLua); LUA->SetField(-2, "ToLua");
     LUA->PushCFunction(Functions::EmptyFunc); LUA->SetField(-2, "PreCacheDir");
     LUA->PushCFunction(Functions::EmptyFunc); LUA->SetField(-2, "PreCacheFile");
+
+    LUA->CreateTable();
+    LUA->PushCFunction(Functions::YueToLua); LUA->SetField(-2, "ToLua");
+    LUA->SetField(-2, "yue");
 
 #if IS_SERVERSIDE
      LUA->PushCFunction(Functions::PreCacheDir); LUA->SetField(-2, "PreCacheDir");

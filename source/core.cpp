@@ -5,6 +5,7 @@
 #include "lua_api.hpp"
 
 #include <moonengine/engine.hpp>
+#include <yuescript/yue_compiler.h>
 
 #if IS_SERVERSIDE
 #include "filesystem.hpp"
@@ -144,6 +145,11 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
         throw std::runtime_error(Utils::Format("failed to initialize moonengine: %s", e.what()));
     }
 
+    try {
+        yuecompiler = std::make_shared<yue::YueCompiler>();
+    } catch (const std::exception& e) {
+        throw std::runtime_error(Utils::Format("failed to initialize yuecompiler: %s", e.what()));
+    }
 
 #if IS_SERVERSIDE
     fs = std::make_shared<Filesystem>(LoadFilesystem());
@@ -204,6 +210,7 @@ void Core::Deinitialize() {
     compiler.reset();
     watchdog.reset();
     fs.reset();
+    yuecompiler.reset();
     moonengine.reset();
     LUA = nullptr;
 }

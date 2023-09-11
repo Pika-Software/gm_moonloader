@@ -146,6 +146,18 @@ namespace MoonLoader::Utils {
         LUA->Pop();
         return std::nullopt;
     }
+    inline std::string_view GetString(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        unsigned int len = 0;
+        const char* str = LUA->GetString(index, &len);
+        return std::string_view(str, len);
+    }
+    inline std::string_view CheckString(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        LUA->CheckType(index, GarrysMod::Lua::Type::String);
+        return GetString(LUA, index);
+    }
+    inline void PushString(GarrysMod::Lua::ILuaBase* LUA, std::string_view str) {
+        LUA->PushString(str.data(), str.size());
+    }
     inline bool DeveloperEnabled(GarrysMod::Lua::ILuaBase* LUA) {
         LUA->PushString("developer");
         return LuaBoolFromValue(LUA, "cvars.Bool", 1).value_or(false);

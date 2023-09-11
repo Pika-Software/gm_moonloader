@@ -25,6 +25,7 @@ if(NOT ${CLIENT_DLL})
 
         efsw
         moonengine
+        libyue
     )
 
     if(APPLE)
@@ -34,6 +35,7 @@ else()
     target_link_libraries(moonloader PRIVATE
         gmod::common
         moonengine
+        libyue
     )
 endif()
 
