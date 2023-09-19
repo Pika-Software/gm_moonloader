@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <utility>
+#include <optional>
 
 struct lua_State;
 
