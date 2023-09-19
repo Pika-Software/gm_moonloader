@@ -57,24 +57,21 @@ namespace Functions {
             unsigned int codeLen = 0;
             const char* code = LUA->GetString(1, &codeLen);
 
-            std::string result;
-            MoonEngine::Engine::CompiledLines lines;
-            bool success = core->moonengine->CompileStringEx(code, codeLen, result, &lines);
-
-            if (success) {
+            auto info = core->moonengine->CompileString2({code, codeLen});
+            if (info.error) {
+                LUA->PushNil();
+                LUA->PushString(info.error->display_msg.c_str());
+            } else {
                 // lua_code
-                LUA->PushString(result.c_str(), result.size());
+                LUA->PushString(info.lua_code.c_str());
 
                 // line_table
                 LUA->CreateTable();
-                for (auto& line : lines) {
+                for (auto& line : info.posmap) {
                     LUA->PushNumber(line.first);
-                    LUA->PushNumber(line.second);
+                    LUA->PushNumber(line.second.offset);
                     LUA->SetTable(-3);
                 }
-            } else {
-                LUA->PushNil();
-                LUA->PushString(result.c_str(), result.size());
             }
 
             return 2;
@@ -225,7 +222,7 @@ void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
          std::string path = Utils::JoinPaths(startPath, file);
          if (core->fs->IsDirectory(path, LUA->GetPathID())) {
              PreCacheDir(LUA, path);
-         } else if (Utils::FileExtension(path) == "moon") {
+         } else if (Utils::FileExtension(path) == "moon" || Utils::FileExtension(path) == "yue") {
              PreCacheFile(LUA, path);
          }
      }
