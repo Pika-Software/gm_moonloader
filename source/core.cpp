@@ -155,6 +155,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     fs = std::make_shared<Filesystem>(LoadFilesystem());
     engine_server = InterfacePointers::VEngineServer();
     watchdog = std::make_shared<Watchdog>(shared_from_this(), fs);
+    watchdog->Start();
     compiler = std::make_shared<Compiler>(shared_from_this(), fs, moonengine, yuecompiler, watchdog);
 
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>();
