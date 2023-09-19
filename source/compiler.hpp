@@ -15,9 +15,14 @@ namespace MoonEngine {
     class Engine;
 }
 
+namespace yue {
+    class YueCompiler;
+}
+
 namespace MoonLoader {
     class Filesystem;
     class Watchdog;
+    class Core;
 
     class Compiler {
     public:
@@ -33,15 +38,27 @@ namespace MoonLoader {
             size_t lastFileModification;
         };
 
+        struct CompiledFile {
+            std::string path;
+            std::string output_path;
+        };
+
     private:
+        std::shared_ptr<Core> core;
         std::shared_ptr<Filesystem> fs;
         std::shared_ptr<MoonEngine::Engine> moonengine;
+        std::shared_ptr<yue::YueCompiler> yuecompiler;
         std::shared_ptr<Watchdog> watchdog;
         std::unordered_map<std::string, MoonDebug> m_CompiledFiles;
+        std::unordered_map<std::string, CompiledFile> compiled_files;
 
     public:
-        Compiler(std::shared_ptr<Filesystem> fs, std::shared_ptr<MoonEngine::Engine> moonengine, std::shared_ptr<Watchdog> watchdog) 
-            : fs(fs), moonengine(moonengine), watchdog(watchdog) {}
+        Compiler(std::shared_ptr<Core> core,
+                 std::shared_ptr<Filesystem> fs,
+                 std::shared_ptr<MoonEngine::Engine> moonengine, 
+                 std::shared_ptr<yue::YueCompiler> yuecompiler,
+                 std::shared_ptr<Watchdog> watchdog)
+            : core(core), fs(fs), moonengine(moonengine), yuecompiler(yuecompiler), watchdog(watchdog) {}
 
         // Gets debug info for compiled .moon file (in LUA directory)
         inline std::optional<MoonDebug> GetDebugInfo(const std::string& path) {
@@ -56,6 +73,8 @@ namespace MoonLoader {
         bool WasModified(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path);
 
         bool CompileMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string path, bool force = false);
+
+        bool CompileFile(const std::string& path);
     };
 }
 
