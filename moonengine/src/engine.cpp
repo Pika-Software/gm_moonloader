@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <algorithm>
+#include <chrono>
 
 #include "lua.hpp"
 #include "moonscript/entry.hpp"
