@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(yue CXX)
 
 set(YUESCRIPT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../third-party/Yuescript)
@@ -15,4 +15,4 @@ add_library(libyue
 )
 
 target_include_directories(libyue PUBLIC ${YUESCRIPT_SRC})
-target_compile_definitions(libyue PRIVATE YUE_NO_MACRO)
+target_compile_definitions(libyue PRIVATE YUE_NO_MACRO YUE_COMPILER_ONLY)
