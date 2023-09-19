@@ -31,7 +31,7 @@ Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs) :
 
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
-    std::string relativePath = fs->FullToRelativePath(path, "lsv");
+    std::string relativePath = fs->FullToRelativePath(path, core->LUA->GetPathID());
     Utils::NormalizePath(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);

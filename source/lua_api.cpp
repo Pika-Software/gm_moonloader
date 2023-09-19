@@ -200,7 +200,7 @@ void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
         } else {
             std::string targetFile = LUA->GetString(1);
             if (Utils::FindMoonScript(core->LUA, targetFile)) {
-                core->compiler->CompileMoonScript(core->LUA, targetFile);
+                core->compiler->CompileFile(targetFile);
                 Utils::SetFileExtension(targetFile, "lua");
             }
 
@@ -214,7 +214,7 @@ void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
 
  bool LuaAPI::PreCacheFile(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path) {
      DevMsg("[Moonloader] Precaching %s\n", path.c_str());
-     return core->compiler->CompileMoonScript(LUA, path);
+     return core->compiler->CompileFile(path);
  }
 
  void LuaAPI::PreCacheDir(GarrysMod::Lua::ILuaInterface* LUA, const std::string& startPath) {

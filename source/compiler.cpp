@@ -12,92 +12,21 @@
 
 using namespace MoonLoader;
 
-inline size_t LookupLineFromOffset(std::string_view str, size_t offset) {
-    int line = 1;
-    for (size_t pos = 0; pos < str.size(); pos++) {
-        if (str[pos] == '\n')
-            line++;
+bool Compiler::NeedsCompile(const std::string& path) {
+    auto it = compiled_files.find(path);
+    if (it == compiled_files.end()) return true;
 
-        if (pos == offset)
-            return line;
-    }
-    return -1;
+    auto update_date = fs->GetFileTime(path, core->LUA->GetPathID());
+    return update_date > it->second.update_date;
 }
 
-bool Compiler::WasModified(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path) {
-    size_t lastModification = fs->GetFileTime(path, LUA->GetPathID());
-    auto debug = GetDebugInfo(path);
-    if (debug) {
-        return debug->lastFileModification != lastModification;
-    }
-    return true;
-}
+bool Compiler::CompileFile(const std::string& path, bool force) {
+    if (!force && !NeedsCompile(path)) return true;
 
-bool Compiler::CompileMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string path, bool force) {
-    if (!force && !WasModified(LUA, path)) {
-        return true;
-    }
-
-    auto readData = fs->ReadBinaryFile(path, LUA->GetPathID());
-    if (readData.empty())
-        return false;
-
-    // Watch for changes of .moon file
-    watchdog->WatchFile(path, LUA->GetPathID());
-
-    MoonEngine::Engine::CompiledLines lines;
-    std::string data;
-    if (!moonengine->CompileStringEx(readData.data(), readData.size(), data, &lines)) {
-        Warning("[Moonloader] Compilation of '%s' failed:\n%s\n", path.c_str(), data.c_str());
-        return false;
-    }
-
-    // Create directories for .lua file
-    std::string dir = path;
-    fs->StripFileName(dir);
-    fs->CreateDirs(dir.c_str(), "MOONLOADER");
-
-    // Write compiled code to .lua file
-    std::string compiledPath = path;
-    fs->SetFileExtension(compiledPath, "lua");
-    if (!fs->WriteToFile(compiledPath, "MOONLOADER", data.c_str(), data.size()))
-        return false;
-
-    // Add debug information
-    std::string fullSourcePath = fs->RelativeToFullPath(path, LUA->GetPathID());
-    fullSourcePath = fs->FullToRelativePath(fullSourcePath, "garrysmod"); // Platform is the root directory of the game, after garrysmod/
-    Filesystem::Normalize(fullSourcePath);
-
-    std::string fullCompiledPath = fs->RelativeToFullPath(path, "MOONLOADER");
-    fullCompiledPath = fs->FullToRelativePath(fullCompiledPath, "garrysmod");
-    Filesystem::Normalize(fullCompiledPath);
-
-    MoonDebug debug {};
-    debug.sourcePath = std::move(path);
-    debug.fullSourcePath = std::move(fullSourcePath);
-    debug.compiledPath = std::move(compiledPath);
-    debug.fullCompiledPath = std::move(fullCompiledPath);
-    debug.lastFileModification = fs->GetFileTime(debug.sourcePath, LUA->GetPathID());
-
-    for (auto it = lines.begin(); it != lines.end(); ++it) {
-        debug.lines.insert_or_assign(it->first, LookupLineFromOffset({ readData.data(), readData.size() }, it->second));
-    }
-
-    m_CompiledFiles.insert_or_assign(debug.sourcePath, debug);
-
-    // Notice lua about compiled file
-    LUA->PushString(debug.sourcePath.c_str());
-    Utils::RunHook(LUA, "MoonFileCompiled", 1, 0);
-
-    return true;
-}
-
-bool Compiler::CompileFile(const std::string& path) {
-    // TODO: check if file wasnt modified
     auto code = fs->ReadTextFile(path, core->LUA->GetPathID());
     if (code.empty()) return false;
 
-    // TODO: watch for file changes
+    watchdog->WatchFile(path, core->LUA->GetPathID());
 
     CompiledFile compiled_file;
     std::string lua_code;
@@ -127,6 +56,8 @@ bool Compiler::CompileFile(const std::string& path) {
     if (!fs->WriteToFile(compiled_file.output_path, "MOONLOADER", lua_code.c_str(), lua_code.size()))
         return false;
 
+    
+    compiled_file.update_date = fs->GetFileTime(path, core->LUA->GetPathID());
     compiled_files.insert_or_assign(path, compiled_file);
 
     return true;

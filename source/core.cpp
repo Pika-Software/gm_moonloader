@@ -96,28 +96,28 @@ public:
     }
 };
 
-typedef int (*lua_getinfo_t)(lua_State* L, const char* what, lua_Debug* ar);
-int lua_getinfo_detour_func(lua_State* L, const char* what, lua_Debug* ar) {
-    if (auto core = MoonLoader::Core::Get(L->luabase)) {
-        int ret = core->lua_getinfo_detour->GetTrampoline<lua_getinfo_t>()(L, what, ar);
-        if (ret != 0) {
-            // File stored in cache/moonloader/lua, so it must be our compiled script?
-            if (MoonLoader::Utils::StartsWith(ar->short_src, CACHE_PATH_LUA)) {
-                std::string path = ar->short_src;
-                MoonLoader::Utils::RemovePrefix(path, CACHE_PATH_LUA);
-                MoonLoader::Utils::SetFileExtension(path, "moon");
+// typedef int (*lua_getinfo_t)(lua_State* L, const char* what, lua_Debug* ar);
+// int lua_getinfo_detour_func(lua_State* L, const char* what, lua_Debug* ar) {
+//     if (auto core = MoonLoader::Core::Get(L->luabase)) {
+//         int ret = core->lua_getinfo_detour->GetTrampoline<lua_getinfo_t>()(L, what, ar);
+//         if (ret != 0) {
+//             // File stored in cache/moonloader/lua, so it must be our compiled script?
+//             if (MoonLoader::Utils::StartsWith(ar->short_src, CACHE_PATH_LUA)) {
+//                 std::string path = ar->short_src;
+//                 MoonLoader::Utils::RemovePrefix(path, CACHE_PATH_LUA);
+//                 MoonLoader::Utils::SetFileExtension(path, "moon");
 
-                auto debugInfo = core->compiler->GetDebugInfo(path);
-                if (debugInfo) {
-                    strncpy(ar->short_src, debugInfo->fullSourcePath.c_str(), sizeof(ar->short_src));
-                    ar->currentline = debugInfo->lines[ar->currentline];
-                }
-            }
-        }
-        return ret;
-    }
-    return 0;
-}
+//                 auto debugInfo = core->compiler->GetDebugInfo(path);
+//                 if (debugInfo) {
+//                     strncpy(ar->short_src, debugInfo->fullSourcePath.c_str(), sizeof(ar->short_src));
+//                     ar->currentline = debugInfo->lines[ar->currentline];
+//                 }
+//             }
+//         }
+//         return ret;
+//     }
+//     return 0;
+// }
 #endif
 
 using namespace MoonLoader;
@@ -162,7 +162,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
         throw std::runtime_error("failed to initialize ILuaInterface proxy");
 
     lua_getinfo_detour = std::make_shared<Detouring::Hook>();
-    lua_getinfo_detour->Create(Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour_func));
+    // lua_getinfo_detour->Create(Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour_func));
 
 #if SYSTEM_IS_MACOSX
     autorefresh = std::make_shared<AutoRefresh>(shared_from_this());
