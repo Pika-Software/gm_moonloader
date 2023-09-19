@@ -9,17 +9,28 @@ using namespace MoonLoader;
 
 bool Utils::FindMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string& path) {
     if (auto core = Core::Get(LUA)) {
-        std::string moonPath = path;
-        Utils::SetFileExtension(moonPath, "moon");
-
         const char* currentDir = LUA->GetPath();
         if (currentDir) {
-            std::string absolutePath = Utils::JoinPaths(currentDir, moonPath);
+            std::string absolutePath = Utils::JoinPaths(currentDir, path);
+            Utils::SetFileExtension(absolutePath, "yue");
+            if (core->fs->Exists(absolutePath, LUA->GetPathID())) {
+                path = std::move(absolutePath);
+                return true;
+            }
+            Utils::SetFileExtension(absolutePath, "moon");
             if (core->fs->Exists(absolutePath, LUA->GetPathID())) {
                 path = std::move(absolutePath);
                 return true;
             }
         }
+
+        std::string moonPath = path;
+        Utils::SetFileExtension(moonPath, "yue");
+        if (core->fs->Exists(moonPath, LUA->GetPathID())) {
+            path = std::move(moonPath);
+            return true;
+        }
+        Utils::SetFileExtension(moonPath, "moon");
         if (core->fs->Exists(moonPath, LUA->GetPathID())) {
             path = std::move(moonPath);
             return true;

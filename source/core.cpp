@@ -5,6 +5,7 @@
 #include "lua_api.hpp"
 
 #include <moonengine/engine.hpp>
+#include <yuescript/yue_compiler.h>
 
 #if IS_SERVERSIDE
 #include "filesystem.hpp"
@@ -77,8 +78,8 @@ public:
                 }
             }
 
-            // Alrighty, everything safe and we can with no worries compile moonscript! Yay!
-            if (core->compiler->CompileMoonScript(core->LUA, path)) {
+            // Alrighty, everything safe and we can with no worries compile! Yay!
+            if (core->compiler->CompileFile(path)) {
                 // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
                 #if SYSTEM_IS_MACOSX
                 if (strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
@@ -95,28 +96,28 @@ public:
     }
 };
 
-typedef int (*lua_getinfo_t)(lua_State* L, const char* what, lua_Debug* ar);
-int lua_getinfo_detour_func(lua_State* L, const char* what, lua_Debug* ar) {
-    if (auto core = MoonLoader::Core::Get(L->luabase)) {
-        int ret = core->lua_getinfo_detour->GetTrampoline<lua_getinfo_t>()(L, what, ar);
-        if (ret != 0) {
-            // File stored in cache/moonloader/lua, so it must be our compiled script?
-            if (MoonLoader::Utils::StartsWith(ar->short_src, CACHE_PATH_LUA)) {
-                std::string path = ar->short_src;
-                MoonLoader::Utils::RemovePrefix(path, CACHE_PATH_LUA);
-                MoonLoader::Utils::SetFileExtension(path, "moon");
+// typedef int (*lua_getinfo_t)(lua_State* L, const char* what, lua_Debug* ar);
+// int lua_getinfo_detour_func(lua_State* L, const char* what, lua_Debug* ar) {
+//     if (auto core = MoonLoader::Core::Get(L->luabase)) {
+//         int ret = core->lua_getinfo_detour->GetTrampoline<lua_getinfo_t>()(L, what, ar);
+//         if (ret != 0) {
+//             // File stored in cache/moonloader/lua, so it must be our compiled script?
+//             if (MoonLoader::Utils::StartsWith(ar->short_src, CACHE_PATH_LUA)) {
+//                 std::string path = ar->short_src;
+//                 MoonLoader::Utils::RemovePrefix(path, CACHE_PATH_LUA);
+//                 MoonLoader::Utils::SetFileExtension(path, "moon");
 
-                auto debugInfo = core->compiler->GetDebugInfo(path);
-                if (debugInfo) {
-                    strncpy(ar->short_src, debugInfo->fullSourcePath.c_str(), sizeof(ar->short_src));
-                    ar->currentline = debugInfo->lines[ar->currentline];
-                }
-            }
-        }
-        return ret;
-    }
-    return 0;
-}
+//                 auto debugInfo = core->compiler->GetDebugInfo(path);
+//                 if (debugInfo) {
+//                     strncpy(ar->short_src, debugInfo->fullSourcePath.c_str(), sizeof(ar->short_src));
+//                     ar->currentline = debugInfo->lines[ar->currentline];
+//                 }
+//             }
+//         }
+//         return ret;
+//     }
+//     return 0;
+// }
 #endif
 
 using namespace MoonLoader;
@@ -144,19 +145,25 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
         throw std::runtime_error(Utils::Format("failed to initialize moonengine: %s", e.what()));
     }
 
+    try {
+        yuecompiler = std::make_shared<yue::YueCompiler>();
+    } catch (const std::exception& e) {
+        throw std::runtime_error(Utils::Format("failed to initialize yuecompiler: %s", e.what()));
+    }
 
 #if IS_SERVERSIDE
     fs = std::make_shared<Filesystem>(LoadFilesystem());
     engine_server = InterfacePointers::VEngineServer();
     watchdog = std::make_shared<Watchdog>(shared_from_this(), fs);
-    compiler = std::make_shared<Compiler>(fs, moonengine, watchdog);
+    watchdog->Start();
+    compiler = std::make_shared<Compiler>(shared_from_this(), fs, moonengine, yuecompiler, watchdog);
 
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>();
     if (!lua_interface_detour->Init(LUA))
         throw std::runtime_error("failed to initialize ILuaInterface proxy");
 
     lua_getinfo_detour = std::make_shared<Detouring::Hook>();
-    lua_getinfo_detour->Create(Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour_func));
+    // lua_getinfo_detour->Create(Utils::LoadSymbol("lua_shared", "lua_getinfo"), reinterpret_cast<void*>(&lua_getinfo_detour_func));
 
 #if SYSTEM_IS_MACOSX
     autorefresh = std::make_shared<AutoRefresh>(shared_from_this());
@@ -204,6 +211,7 @@ void Core::Deinitialize() {
     compiler.reset();
     watchdog.reset();
     fs.reset();
+    yuecompiler.reset();
     moonengine.reset();
     LUA = nullptr;
 }

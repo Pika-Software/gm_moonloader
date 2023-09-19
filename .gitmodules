@@ -7,3 +7,6 @@
 [submodule "third-party/efsw"]
 	path = third-party/efsw
 	url = https://github.com/SpartanJ/efsw.git
+[submodule "third-party/Yuescript"]
+	path = third-party/Yuescript
+	url = https://github.com/pigpigyyy/Yuescript.git

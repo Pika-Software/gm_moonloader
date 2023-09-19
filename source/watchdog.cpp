@@ -24,14 +24,17 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
     }
 }
 
-Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs) : core(core), fs(fs) {
-    // Launch watchdog in a separate thread
+Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs) 
+    : core(core), fs(fs) {}
+
+void Watchdog::Start() {
     m_Watcher->watch();
+    m_WatchdogListener->watchdog = weak_from_this();
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
-    std::string relativePath = fs->FullToRelativePath(path, "lsv");
+    std::string relativePath = fs->FullToRelativePath(path, core->LUA->GetPathID());
     Utils::NormalizePath(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);
@@ -51,7 +54,6 @@ void Watchdog::WatchDirectory(const std::string& path) {
 
     auto id = m_Watcher->addWatch(path.c_str(), m_WatchdogListener.get(), false);
     m_WatchIDs.insert_or_assign(path, id);
-    m_WatchdogListener->watchdog = weak_from_this();
 }
 
 void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID) {

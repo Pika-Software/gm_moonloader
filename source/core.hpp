@@ -17,6 +17,10 @@ namespace MoonEngine {
     class Engine;
 }
 
+namespace yue {
+    class YueCompiler;
+}
+
 namespace MoonLoader {
     class LuaAPI;
     class Filesystem;
@@ -29,6 +33,7 @@ namespace MoonLoader {
     public:
         GarrysMod::Lua::ILuaInterface* LUA = nullptr;
         std::shared_ptr<MoonEngine::Engine> moonengine;
+        std::shared_ptr<yue::YueCompiler> yuecompiler;
         std::shared_ptr<LuaAPI> lua_api;
         std::shared_ptr<Filesystem> fs;
         IVEngineServer* engine_server = nullptr;

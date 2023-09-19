@@ -25,7 +25,7 @@ namespace MoonLoader {
             std::string oldFilename) override;
     };
 
-    class Watchdog : std::enable_shared_from_this<Watchdog> {
+    class Watchdog : public std::enable_shared_from_this<Watchdog> {
         std::shared_ptr<Core> core;
         std::shared_ptr<Filesystem> fs;
         std::unique_ptr<efsw::FileWatcher> m_Watcher = std::make_unique<efsw::FileWatcher>();
@@ -39,6 +39,7 @@ namespace MoonLoader {
 
     public:
         Watchdog(std::shared_ptr<Core>, std::shared_ptr<Filesystem> fs);
+        void Start();
 
         inline bool IsFileWatched(const std::string& path) { return m_WatchedFiles.find(path) != m_WatchedFiles.end(); }
         inline bool IsDirectoryWatched(const std::string& path) { return m_WatchIDs.find(path) != m_WatchIDs.end(); }
