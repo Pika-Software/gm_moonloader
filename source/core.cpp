@@ -78,8 +78,8 @@ public:
                 }
             }
 
-            // Alrighty, everything safe and we can with no worries compile moonscript! Yay!
-            if (core->compiler->CompileMoonScript(core->LUA, path)) {
+            // Alrighty, everything safe and we can with no worries compile! Yay!
+            if (core->compiler->CompileFile(path)) {
                 // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
                 #if SYSTEM_IS_MACOSX
                 if (strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
