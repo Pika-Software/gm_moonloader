@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
+enable_language(CXX C)
 
 # Require C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -20,9 +21,9 @@ if(APPLE)
     )
 endif()
 
-# Enable multithreaded compilation on Windows
+# Debug build is unsupported on MSVC
 if(MSVC)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" "/MP")
+    list(REMOVE_ITEM CMAKE_CONFIGURATION_TYPES "Debug")
 endif()
 
 # Include extensions
