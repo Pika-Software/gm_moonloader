@@ -3,6 +3,7 @@
 #include "global.hpp"
 #include "utils.hpp"
 #include "lua_api.hpp"
+#include "errors.hpp"
 
 #include <moonengine/engine.hpp>
 #include <yuescript/yue_compiler.h>
@@ -118,6 +119,9 @@ public:
 //     }
 //     return 0;
 // }
+
+
+
 #endif
 
 using namespace MoonLoader;
@@ -157,6 +161,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     watchdog = std::make_shared<Watchdog>(shared_from_this(), fs);
     watchdog->Start();
     compiler = std::make_shared<Compiler>(shared_from_this(), fs, moonengine, yuecompiler, watchdog);
+    errors = std::make_shared<Errors>(shared_from_this());
 
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>();
     if (!lua_interface_detour->Init(LUA))
@@ -208,6 +213,7 @@ void Core::Deinitialize() {
     autorefresh.reset();
     lua_interface_detour.reset();
     lua_getinfo_detour.reset();
+    errors.reset();
     compiler.reset();
     watchdog.reset();
     fs.reset();

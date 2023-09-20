@@ -28,6 +28,7 @@ namespace MoonLoader {
     class Watchdog;
     class AutoRefresh;
     class ILuaInterfaceProxy;
+    class Errors;
 
     class Core : public std::enable_shared_from_this<Core> {
     public:
@@ -41,6 +42,7 @@ namespace MoonLoader {
         std::shared_ptr<Compiler> compiler;
         std::shared_ptr<AutoRefresh> autorefresh;
         std::shared_ptr<ILuaInterfaceProxy> lua_interface_detour;
+        std::shared_ptr<Errors> errors;
         std::shared_ptr<Detouring::Hook> lua_getinfo_detour;
 
         static inline std::shared_ptr<Core> Create() { return std::make_shared<Core>(); }
