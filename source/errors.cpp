@@ -1,5 +1,8 @@
 #include "errors.hpp"
 #include "core.hpp"
+#include "compiler.hpp"
+#include "utils.hpp"
+#include "global.hpp"
 
 #include <GarrysMod/Lua/LuaInterface.h>
 
@@ -16,7 +19,19 @@ Errors::~Errors() {
     LUA->SetLuaGameCallback(callback);
 }
 
+void Errors::TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry& entry) {
+    if (!Utils::StartsWith(entry.source, CACHE_PATH_LUA)) return; // TODO: Make it better
+    if (auto info = core->compiler->FindFileByFullOutputPath(entry.source)) {
+        
+    }
+}
+
 void Errors::LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error) {
-    return callback->LuaError(error);
+    GarrysMod::Lua::ILuaGameCallback::CLuaError custom_error = *error;
+
+    for (auto& entry : custom_error.stack)
+        TransformStackEntry(entry);
+
+    return callback->LuaError(&custom_error);
 }
 

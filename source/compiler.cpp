@@ -57,6 +57,7 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
         return false;
 
     
+    compiled_file.full_output_path = fs->TransverseRelativePath(compiled_file.output_path, "MOONLOADER", "garrysmod");
     compiled_file.update_date = fs->GetFileTime(path, core->LUA->GetPathID());
     compiled_files.insert_or_assign(path, compiled_file);
 

@@ -29,6 +29,7 @@ namespace MoonLoader {
         struct CompiledFile {
             std::string path;
             std::string output_path;
+            std::string full_output_path;
             size_t update_date = 0;
         };
 
@@ -49,6 +50,11 @@ namespace MoonLoader {
             : core(core), fs(fs), moonengine(moonengine), yuecompiler(yuecompiler), watchdog(watchdog) {}
 
         bool NeedsCompile(const std::string& path);
+        std::optional<std::reference_wrapper<const CompiledFile>> FindFileByFullOutputPath(std::string_view full_output_path) {
+            for (const auto& [path, info] : compiled_files)
+                if (info.full_output_path == full_output_path)
+                    return info;
+        }
 
         bool CompileFile(const std::string& path, bool force = false);
     };

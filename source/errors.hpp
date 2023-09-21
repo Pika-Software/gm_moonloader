@@ -16,6 +16,7 @@ namespace MoonLoader {
         Errors(std::shared_ptr<Core> core);
         ~Errors();
 
+        void TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry& entry);
         virtual void LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error);
 
         // Default callbacks
