@@ -90,6 +90,17 @@ namespace MoonLoader::Utils {
             str.erase(0, prefix.size());
     }
 
+    template <char DELIMITER = '\n', class Func>
+    inline void Split(std::string_view str, Func f) {
+        std::string_view::size_type last = 0, next = 0, line = 1;
+        while ((next = str.find(DELIMITER, last)) != std::string_view::npos) {
+            f(str.substr(last, next - last), line);
+            last = next + 1;
+            line++;
+        }
+        f(str.substr(last), line);
+    }
+
     // ---------------------------
     // - Lua utils               -
     // ---------------------------

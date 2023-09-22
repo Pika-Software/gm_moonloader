@@ -27,10 +27,19 @@ namespace MoonLoader {
     class Compiler {
     public:
         struct CompiledFile {
-            std::string path;
+            enum Type {
+                Moonscript,
+                Yuescript
+            };
+
+            std::string source_path;
+            std::string full_source_path;
             std::string output_path;
             std::string full_output_path;
             size_t update_date = 0;
+            Type type;
+
+            std::unordered_map<int, int> line_map;
         };
 
     private:
@@ -50,10 +59,11 @@ namespace MoonLoader {
             : core(core), fs(fs), moonengine(moonengine), yuecompiler(yuecompiler), watchdog(watchdog) {}
 
         bool NeedsCompile(const std::string& path);
-        std::optional<std::reference_wrapper<const CompiledFile>> FindFileByFullOutputPath(std::string_view full_output_path) {
+        const CompiledFile* FindFileByFullOutputPath(std::string_view full_output_path) const {
             for (const auto& [path, info] : compiled_files)
                 if (info.full_output_path == full_output_path)
-                    return info;
+                    return &info;
+            return nullptr;
         }
 
         bool CompileFile(const std::string& path, bool force = false);

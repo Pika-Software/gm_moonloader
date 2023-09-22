@@ -5,6 +5,7 @@
 #include "global.hpp"
 
 #include <GarrysMod/Lua/LuaInterface.h>
+#include <regex>
 
 using namespace MoonLoader;
 
@@ -22,16 +23,38 @@ Errors::~Errors() {
 void Errors::TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry& entry) {
     if (!Utils::StartsWith(entry.source, CACHE_PATH_LUA)) return; // TODO: Make it better
     if (auto info = core->compiler->FindFileByFullOutputPath(entry.source)) {
-        
+        entry.source = info->full_source_path;
+        if (const auto it = info->line_map.find(entry.line); it != info->line_map.end())
+            entry.line = it->second;
     }
+}
+
+std::optional<GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry> Errors::TransformErrorMessage(std::string& err) {
+    static std::regex ERROR_MESSAGE_REGEX("^(.*?):(\\d+): (.+)$", 
+        std::regex_constants::optimize | std::regex_constants::multiline);
+    std::smatch match;
+    if (std::regex_search(err, match, ERROR_MESSAGE_REGEX)) {
+        GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry entry;
+        entry.source = match[1].str();
+        entry.line = std::atoi(match[2].first.base());
+        std::string message = match[3].str();
+
+        TransformStackEntry(entry);
+        TransformErrorMessage(message);
+        err = entry.source + ":" + std::to_string(entry.line) + ": " + message;
+        return entry;
+    }
+    return {};
 }
 
 void Errors::LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error) {
     GarrysMod::Lua::ILuaGameCallback::CLuaError custom_error = *error;
 
+    auto error_source = TransformErrorMessage(custom_error.message);
+
     for (auto& entry : custom_error.stack)
         TransformStackEntry(entry);
 
-    return callback->LuaError(&custom_error);
+    callback->LuaError(&custom_error);
 }
 
