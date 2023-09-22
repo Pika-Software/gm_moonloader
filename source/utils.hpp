@@ -27,6 +27,9 @@ namespace MoonLoader::Utils {
     inline bool EndsWith(std::string_view str, std::string_view suffix) {
         return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
     }
+    inline void RightTrim(std::string &s) {
+        s.erase(std::find_if_not(s.rbegin(), s.rend(), ::isspace).base(), s.end());
+    }
     inline void LowerCase(std::string& path) {
         std::transform(path.begin(), path.end(), path.begin(), ::tolower);
     }

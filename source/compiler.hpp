@@ -59,6 +59,12 @@ namespace MoonLoader {
             : core(core), fs(fs), moonengine(moonengine), yuecompiler(yuecompiler), watchdog(watchdog) {}
 
         bool NeedsCompile(const std::string& path);
+        const CompiledFile* FindFileByFullSourcePath(const std::string& full_source_path) const {
+            for (const auto& [path, info] : compiled_files)
+                if (info.full_source_path == full_source_path)
+                    return &info;
+            return nullptr;
+        }
         const CompiledFile* FindFileByFullOutputPath(std::string_view full_output_path) const {
             for (const auto& [path, info] : compiled_files)
                 if (info.full_output_path == full_output_path)

@@ -3,9 +3,13 @@
 #include "compiler.hpp"
 #include "utils.hpp"
 #include "global.hpp"
+#include "filesystem.hpp"
 
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <regex>
+#include <sstream>
+#include <algorithm>
+#include <map>
 
 using namespace MoonLoader;
 
@@ -47,6 +51,45 @@ std::optional<GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry> Errors::T
     return {};
 }
 
+inline std::map<int, std::string> ReadLines(std::string_view code, int bottom_line, int top_line) {
+    std::map<int, std::string> lines;
+    Utils::Split(code, [&](auto line_str, auto current_line) {
+        if (current_line < bottom_line || current_line > top_line) return;
+        lines[current_line] = line_str;
+    });
+    return lines;
+}
+
+inline void TrimLines(std::map<int, std::string>& lines) {
+    size_t min_spaces = -1;
+    for (auto& [num, line] : lines) {
+        size_t spaces = std::distance(line.cbegin(), std::find_if_not(line.cbegin(), line.cend(), ::isspace));
+        if (spaces == line.size()) continue;
+        min_spaces = std::min(min_spaces, spaces);
+    }
+
+    for (auto& [num, line] : lines) {
+        if (line.size() > min_spaces)
+            line.erase(0, min_spaces);
+        Utils::RightTrim(line);
+    }
+}
+
+void Errors::PrintSourceFile(std::string_view code, int error_line) {
+    auto lines = ReadLines(code, std::max(error_line - 5, 0), error_line + 2);
+
+    TrimLines(lines);
+
+    for (const auto& [num, line] : lines) {
+        std::stringstream ss;
+        ss << " " << (error_line == num ? "-->" : "") << "\t";
+        ss << num << "\t";
+        ss << "| " << line;
+        if (error_line == num) ss << "\t" << "<--";
+        core->LUA->Msg("%s\n", ss.str().c_str());
+    }
+}
+
 void Errors::LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error) {
     GarrysMod::Lua::ILuaGameCallback::CLuaError custom_error = *error;
 
@@ -56,5 +99,11 @@ void Errors::LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error) 
         TransformStackEntry(entry);
 
     callback->LuaError(&custom_error);
+
+    if (error_source) {
+        auto code = core->fs->ReadTextFile(error_source->source, "garrysmod");
+        if (!code.empty())
+            PrintSourceFile(code, error_source->line);
+    }
 }
 
