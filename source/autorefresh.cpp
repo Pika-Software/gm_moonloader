@@ -133,6 +133,9 @@ AutoRefresh::AutoRefresh(std::shared_ptr<Core> core) : core(core) {
         if (container) client_files = container->FindTable("client_lua_files");
     }
     if (!client_files) throw std::runtime_error("Failed to find client_lua_files string table");
+    
+    if (Utils::LuaBoolFromValue(core->LUA, "game.SinglePlayer", 0).value_or(false))
+        Warning("[Moonloader] Autorefresh is not supported in singleplayer\n");
 }
 
 #endif
