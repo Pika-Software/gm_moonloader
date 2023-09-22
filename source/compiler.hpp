@@ -15,10 +15,6 @@ namespace MoonEngine {
     class Engine;
 }
 
-namespace yue {
-    class YueCompiler;
-}
-
 namespace MoonLoader {
     class Filesystem;
     class Watchdog;
@@ -46,7 +42,6 @@ namespace MoonLoader {
         std::shared_ptr<Core> core;
         std::shared_ptr<Filesystem> fs;
         std::shared_ptr<MoonEngine::Engine> moonengine;
-        std::shared_ptr<yue::YueCompiler> yuecompiler;
         std::shared_ptr<Watchdog> watchdog;
         std::unordered_map<std::string, CompiledFile> compiled_files;
 
@@ -54,9 +49,8 @@ namespace MoonLoader {
         Compiler(std::shared_ptr<Core> core,
                  std::shared_ptr<Filesystem> fs,
                  std::shared_ptr<MoonEngine::Engine> moonengine, 
-                 std::shared_ptr<yue::YueCompiler> yuecompiler,
                  std::shared_ptr<Watchdog> watchdog)
-            : core(core), fs(fs), moonengine(moonengine), yuecompiler(yuecompiler), watchdog(watchdog) {}
+            : core(core), fs(fs), moonengine(moonengine), watchdog(watchdog) {}
 
         bool NeedsCompile(const std::string& path);
         const CompiledFile* FindFileByFullSourcePath(const std::string& full_source_path) const {

@@ -47,7 +47,10 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
     std::string lua_code;
     compiled_file.source_path = path;
     if (Utils::FileExtension(path) == "yue") {
-        auto info = yuecompiler->compile(code);
+        // Yeah.. for every compilation we need to recraete yuecompiler
+        // You might ask why? Because Yuecompiler does not
+        // clear its internal state after compilation
+        auto info = yue::YueCompiler().compile(code);
         if (info.error) {
             Warning("[Moonloader] Yuescript compilation of '%s' failed:\n%s\n", path.c_str(), info.error->displayMessage.c_str());
             return false;

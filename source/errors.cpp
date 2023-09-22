@@ -85,7 +85,6 @@ void Errors::PrintSourceFile(std::string_view code, int error_line) {
         ss << " " << (error_line == num ? "-->" : "") << "\t";
         ss << num << "\t";
         ss << "| " << line;
-        if (error_line == num) ss << "\t" << "<--";
         core->LUA->Msg("%s\n", ss.str().c_str());
     }
 }

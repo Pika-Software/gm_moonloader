@@ -82,12 +82,11 @@ namespace Functions {
     LUA_FUNCTION(YueToLua) {
         LUA->CheckType(1, GarrysMod::Lua::Type::String);
         if (LUA->Top() >= 2) LUA->CheckType(2, GarrysMod::Lua::Type::Table);
-        if (auto core = Core::Get(LUA); core && core->yuecompiler) { 
+        if (auto core = Core::Get(LUA)) { 
             auto input = Utils::GetString(LUA, 1);
             yue::YueConfig config;
             if (LUA->Top() >= 2) ParseYueConfig(LUA, config, 2);
-
-            auto result = core->yuecompiler->compile(input, config);
+            auto result = yue::YueCompiler().compile(input, config);
             if (result.error) LUA->PushNil();
             else Utils::PushString(LUA, result.codes);
             if (result.error) Utils::PushString(LUA, result.error->displayMessage);
