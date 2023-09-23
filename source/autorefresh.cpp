@@ -34,7 +34,7 @@ inline std::array<char, 32> GetSHA256(const char* data, size_t len) {
     return result;
 }
 
-std::vector<char> Compress(const std::string& input) {
+inline std::vector<char> Compress(const std::string& input) {
     // The data is written:
     //	5 bytes:	props
     //	8 bytes:	uncompressed size
@@ -115,6 +115,15 @@ inline void SendFileToClient(std::shared_ptr<Core> core, const std::string& path
 }
 
 bool AutoRefresh::Sync(std::string_view path) {
+    if (is_singleplayer) {
+        if (CLIENT_LUA == nullptr) return false;
+
+        std::string fullPath(path);
+        Utils::SetFileExtension(fullPath, "lua");
+        CLIENT_LUA->FindAndRunScript(fullPath.c_str(), true, true, "!RELOAD", true);
+        return true;
+    }
+    
     if (!client_files) return false;
     std::string fullPath = Utils::JoinPaths(CACHE_PATH_LUA, path);
     Utils::SetFileExtension(fullPath, "lua");
@@ -134,8 +143,7 @@ AutoRefresh::AutoRefresh(std::shared_ptr<Core> core) : core(core) {
     }
     if (!client_files) throw std::runtime_error("Failed to find client_lua_files string table");
     
-    if (Utils::LuaBoolFromValue(core->LUA, "game.SinglePlayer", 0).value_or(false))
-        Warning("[Moonloader] Autorefresh is not supported in singleplayer\n");
+    is_singleplayer = Utils::LuaBoolFromValue(core->LUA, "game.SinglePlayer", 0).value_or(false);
 }
 
 #endif
