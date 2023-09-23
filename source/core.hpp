@@ -6,6 +6,7 @@
 #include <memory>
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <unordered_map>
+#include <vector>
 
 class IVEngineServer;
 

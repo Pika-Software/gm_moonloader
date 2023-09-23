@@ -6,6 +6,7 @@
 #include <memory>
 #include <GarrysMod/Lua/LuaGameCallback.h>
 #include <GarrysMod/Lua/LuaInterface.h>
+#include <optional>
 
 namespace MoonLoader {
     class Core;
