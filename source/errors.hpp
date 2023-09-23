@@ -5,15 +5,18 @@
 
 #include <memory>
 #include <GarrysMod/Lua/LuaGameCallback.h>
+#include <GarrysMod/Lua/LuaInterface.h>
 
 namespace MoonLoader {
     class Core;
 
     class Errors : public GarrysMod::Lua::ILuaGameCallback {
         std::shared_ptr<Core> core;
+        GarrysMod::Lua::CLuaInterface* LUA = nullptr;
         GarrysMod::Lua::ILuaGameCallback* callback = nullptr;
     public:
         Errors(std::shared_ptr<Core> core);
+        Errors(std::shared_ptr<Core> core, GarrysMod::Lua::ILuaInterface* LUA);
         ~Errors();
 
         void TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry& entry);

@@ -42,6 +42,7 @@ namespace MoonLoader {
         static inline std::shared_ptr<Core> Create() { return std::make_shared<Core>(); }
         static std::shared_ptr<Core> Get(GarrysMod::Lua::ILuaBase* LUA);
         static void Remove(GarrysMod::Lua::ILuaBase* LUA);
+        static std::vector<std::shared_ptr<Core>> GetAll();
 
         void Initialize(GarrysMod::Lua::ILuaInterface* LUA);
         void Deinitialize();

@@ -14,13 +14,18 @@
 using namespace MoonLoader;
 
 Errors::Errors(std::shared_ptr<Core> core) : core(core) {
-    auto LUA = reinterpret_cast<GarrysMod::Lua::CLuaInterface*>(core->LUA);
+    LUA = reinterpret_cast<GarrysMod::Lua::CLuaInterface*>(core->LUA);
+    callback = LUA->GetLuaGameCallback();
+    LUA->SetLuaGameCallback(this);
+}
+
+Errors::Errors(std::shared_ptr<Core> core, GarrysMod::Lua::ILuaInterface* _LUA) : core(core) {
+    LUA = reinterpret_cast<GarrysMod::Lua::CLuaInterface*>(_LUA);
     callback = LUA->GetLuaGameCallback();
     LUA->SetLuaGameCallback(this);
 }
 
 Errors::~Errors() {
-    auto LUA = reinterpret_cast<GarrysMod::Lua::CLuaInterface*>(core->LUA);
     LUA->SetLuaGameCallback(callback);
 }
 
@@ -85,7 +90,7 @@ void Errors::PrintSourceFile(std::string_view code, int error_line) {
         ss << " " << (error_line == num ? "-->" : "") << "\t";
         ss << num << "\t";
         ss << "| " << line;
-        core->LUA->Msg("%s\n", ss.str().c_str());
+        LUA->Msg("%s\n", ss.str().c_str());
     }
 }
 

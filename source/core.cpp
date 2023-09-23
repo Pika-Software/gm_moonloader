@@ -3,7 +3,6 @@
 #include "global.hpp"
 #include "utils.hpp"
 #include "lua_api.hpp"
-#include "errors.hpp"
 
 #include <moonengine/engine.hpp>
 
@@ -12,6 +11,7 @@
 #include "compiler.hpp"
 #include "watchdog.hpp"
 #include "autorefresh.hpp"
+#include "errors.hpp"
 #include <GarrysMod/InterfacePointers.hpp>
 #include <detouring/classproxy.hpp>
 #include <detouring/hook.hpp>
@@ -30,18 +30,38 @@ inline IFileSystem* LoadFilesystem() {
 class MoonLoader::ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, MoonLoader::ILuaInterfaceProxy> {
 public:
     std::unordered_set<std::string> included_files;
+    std::unique_ptr<Errors> clientside_error_handler;
 
-    ILuaInterfaceProxy() {}
-
-    bool Init(GarrysMod::Lua::ILuaInterface* LUA) {
+    ILuaInterfaceProxy(GarrysMod::Lua::ILuaInterface* LUA) {
         Initialize(LUA);
-        return Hook(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, &ILuaInterfaceProxy::FindAndRunScript) &&
-            Hook(&GarrysMod::Lua::ILuaInterface::Cycle, &ILuaInterfaceProxy::Cycle);
+        if (!Hook(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, &ILuaInterfaceProxy::FindAndRunScript))
+            throw std::runtime_error("failed to hook ILuaInterface::FindAndRunScript");
+        if (!Hook(&GarrysMod::Lua::ILuaInterface::Cycle, &ILuaInterfaceProxy::Cycle))
+            throw std::runtime_error("failed to hook ILuaInterface::Cycle");
+        if (!Hook(&GarrysMod::Lua::ILuaInterface::SetPathID, &ILuaInterfaceProxy::SetPathID))
+            throw std::runtime_error("failed to hook ILuaInterface::SetPathID");
     }
 
-    void Deinit() {
+    ~ILuaInterfaceProxy() {
         UnHook(&GarrysMod::Lua::ILuaInterface::FindAndRunScript);
         UnHook(&GarrysMod::Lua::ILuaInterface::Cycle);
+        UnHook(&GarrysMod::Lua::ILuaInterface::SetPathID);
+    }
+
+    virtual void SetPathID(const char *pathID) {
+        Call(&GarrysMod::Lua::ILuaInterface::SetPathID, pathID);
+        if (strcmp(pathID, "lcl") != 0) return;
+
+        for (auto& core : Core::GetAll()) {
+            if (core->LUA->IsServer()) {
+                core->lua_interface_detour->clientside_error_handler
+                    = std::make_unique<Errors>(core, This());
+                
+                if (core->autorefresh)
+                    core->autorefresh->SetClientLua(This());
+                break;
+            }
+        }
     }
 
     virtual void Cycle() {
@@ -85,7 +105,8 @@ public:
             // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
             #if SYSTEM_IS_MACOSX
             if (strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
-                core->autorefresh->Sync(path);
+                if (!core->autorefresh->Sync(path))
+                    Warning("[Moonloader] Failed to autorefresh %s\n", path.c_str());
             }
             #endif
 
@@ -111,6 +132,13 @@ void Core::Remove(GarrysMod::Lua::ILuaBase* LUA) {
     g_Cores.erase(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
 }
 
+std::vector<std::shared_ptr<Core>> Core::GetAll() {
+    std::vector<std::shared_ptr<Core>> cores;
+    for (auto& [_, core] : g_Cores)
+        cores.push_back(core);
+    return cores;
+}
+
 void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     this->LUA = LUA;
 
@@ -131,9 +159,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     compiler = std::make_shared<Compiler>(shared_from_this(), fs, moonengine, watchdog);
     errors = std::make_shared<Errors>(shared_from_this());
 
-    lua_interface_detour = std::make_shared<ILuaInterfaceProxy>();
-    if (!lua_interface_detour->Init(LUA))
-        throw std::runtime_error("failed to initialize ILuaInterface proxy");
+    lua_interface_detour = std::make_shared<ILuaInterfaceProxy>(LUA);
 
 #if SYSTEM_IS_MACOSX
     autorefresh = std::make_shared<AutoRefresh>(shared_from_this());
@@ -157,8 +183,6 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
 void Core::Deinitialize() {
 #if IS_SERVERSIDE
-    if (lua_interface_detour) lua_interface_detour->Deinit();
-
     fs->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID());
     if (LUA->IsServer())
         fs->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl");
