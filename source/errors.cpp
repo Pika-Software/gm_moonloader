@@ -10,7 +10,6 @@
 #include <sstream>
 #include <algorithm>
 #include <map>
-#include <optional>
 
 using namespace MoonLoader;
 
@@ -41,7 +40,7 @@ void Errors::TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::St
 
 std::optional<GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry> Errors::TransformErrorMessage(std::string& err) {
     static std::regex ERROR_MESSAGE_REGEX("^(.*?):(\\d+): (.+)$", 
-        std::regex_constants::optimize | std::regex_constants::multiline | std::regex_constants::ECMAScript);
+        std::regex_constants::optimize | std::regex_constants::ECMAScript);
     std::smatch match;
     if (std::regex_search(err, match, ERROR_MESSAGE_REGEX)) {
         GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry entry;
