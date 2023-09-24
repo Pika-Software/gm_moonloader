@@ -41,11 +41,12 @@ void Errors::TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::St
 std::optional<GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry> Errors::TransformErrorMessage(std::string& err) {
     static std::regex ERROR_MESSAGE_REGEX("^(.*?):(\\d+): (.+)$", 
         std::regex_constants::optimize | std::regex_constants::ECMAScript);
+
     std::smatch match;
     if (std::regex_search(err, match, ERROR_MESSAGE_REGEX)) {
         GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry entry;
         entry.source = match[1].str();
-        entry.line = std::atoi(match[2].first.base());
+        entry.line = std::stoi(match[2].str());
         std::string message = match[3].str();
 
         TransformStackEntry(entry);
