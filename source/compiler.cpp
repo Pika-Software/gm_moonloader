@@ -17,9 +17,9 @@ std::unordered_map<int, int> ParseYueLines(std::string_view code) {
     static std::regex YUE_LINE_REGEX("--\\s*(\\d*)\\s*$", std::regex_constants::optimize);
 
     std::unordered_map<int, int> line_map;
-    Utils::Split(code, [&](auto line, auto num) {
+    Utils::Split(code, [&](std::string_view line, size_t num) {
         std::cmatch match;
-        if (std::regex_search(line.cbegin(), line.cend(), match, YUE_LINE_REGEX)) {
+        if (std::regex_search(line.data(), line.data() + line.size(), match, YUE_LINE_REGEX)) {
             int source_line = std::stoi(match[1].str());
             line_map[num] = source_line;
         }
