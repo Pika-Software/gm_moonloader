@@ -129,7 +129,7 @@ bool AutoRefresh::Sync(std::string_view path) {
     Utils::SetFileExtension(fullPath, "lua");
 
     int fileID = client_files->FindStringIndex(fullPath.c_str());
-    if (fileID == (uint16)-1) return false;
+    if (fileID == (uint16)-1) return true;
 
     SendFileToClient(core, fullPath);
     return true;
