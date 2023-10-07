@@ -101,6 +101,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt update
           sudo apt install gcc-multilib g++-multilib
 
       - name: '[x32] Download garrysmod_common'
