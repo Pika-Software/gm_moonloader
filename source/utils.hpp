@@ -172,6 +172,11 @@ namespace MoonLoader::Utils {
     inline void PushString(GarrysMod::Lua::ILuaBase* LUA, std::string_view str) {
         LUA->PushString(str.data(), str.size());
     }
+    inline std::optional<double> OptNumber(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        return LUA->IsType(index, GarrysMod::Lua::Type::Number) ? 
+            std::optional(LUA->GetNumber(index)) : 
+            std::nullopt;
+    }
     inline bool DeveloperEnabled(GarrysMod::Lua::ILuaBase* LUA) {
         LUA->PushString("developer");
         return LuaBoolFromValue(LUA, "cvars.Bool", 1).value_or(false);
@@ -194,6 +199,15 @@ namespace MoonLoader::Utils {
         std::unique_ptr<char[]> buf(new char[size]);
         std::snprintf(buf.get(), size, format.c_str(), args ...);
         return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+    }
+
+    inline std::optional<int> FindClosestLine(const std::unordered_map<int, int>& lines, int line) {
+        int closest = -1;
+        for (auto& [key, value] : lines) {
+            if (key > line) break;
+            closest = value;
+        }
+        return closest >= 0 ? std::optional(closest) : std::nullopt;
     }
 
 #if IS_SERVERSIDE

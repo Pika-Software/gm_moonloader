@@ -11,6 +11,7 @@
 #if IS_SERVERSIDE
 #include "compiler.hpp"
 #include "filesystem.hpp"
+#include <tier1/convar.h>
 #endif
 
 using namespace MoonLoader;
@@ -121,27 +122,34 @@ namespace Functions {
     }
 
 #if IS_SERVERSIDE
-     LUA_FUNCTION(PreCacheDir) {
-         if (auto core = Core::Get(LUA)) {
-             core->lua_api->PreCacheDir(core->LUA, LUA->CheckString(1));
-         }
-         return 0;
-     }
+    LUA_FUNCTION(PreCacheDir) {
+        if (auto core = Core::Get(LUA)) {
+            core->lua_api->PreCacheDir(core->LUA, LUA->CheckString(1));
+        }
+        return 0;
+    }
 
-     LUA_FUNCTION(PreCacheFile) {
-         if (auto core = Core::Get(LUA)) {
-             LUA->PushBool(core->lua_api->PreCacheFile(core->LUA, LUA->CheckString(1)));
-             return 1;
-         }
-         return 0;
-     }
+    LUA_FUNCTION(PreCacheFile) {
+        if (auto core = Core::Get(LUA)) {
+            LUA->PushBool(core->lua_api->PreCacheFile(core->LUA, LUA->CheckString(1)));
+            return 1;
+        }
+        return 0;
+    }
 
-     LUA_FUNCTION(AddCSLuaFile) {
-         if (auto core = Core::Get(LUA)) {
-             core->lua_api->AddCSLuaFile(core->LUA);
-         }
-         return 0;
-     }
+    LUA_FUNCTION(AddCSLuaFile) {
+        if (auto core = Core::Get(LUA)) {
+            core->lua_api->AddCSLuaFile(core->LUA);
+        }
+        return 0;
+    }
+
+    LUA_FUNCTION(DebugGetInfo) {
+        if (auto core = Core::Get(LUA)) {
+            return core->lua_api->DebugGetInfo(core->LUA);
+        }
+        return 0;
+    }
 #endif
 }
 
@@ -164,22 +172,37 @@ void LuaAPI::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     LUA->SetField(-2, "yue");
 
 #if IS_SERVERSIDE
-     LUA->PushCFunction(Functions::PreCacheDir); LUA->SetField(-2, "PreCacheDir");
-     LUA->PushCFunction(Functions::PreCacheFile); LUA->SetField(-2, "PreCacheFile");
+    LUA->PushCFunction(Functions::PreCacheDir); LUA->SetField(-2, "PreCacheDir");
+    LUA->PushCFunction(Functions::PreCacheFile); LUA->SetField(-2, "PreCacheFile");
 #endif
     LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "moonloader");
 
 #if IS_SERVERSIDE
+    // Detour AddCSLuaFile
     if (LUA->IsServer()) {
         if (!AddCSLuaFile_ref) {
             LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
             if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) AddCSLuaFile_ref = GarrysMod::Lua::AutoReference(LUA);
             else LUA->Pop();
         }
-
-         LUA->PushCFunction(Functions::AddCSLuaFile);
-         LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+        if (AddCSLuaFile_ref) {
+            LUA->PushCFunction(Functions::AddCSLuaFile);
+            LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+        }
     }
+
+    // Detour debug.getinfo
+    LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "debug");
+    if (!GetInfo_ref) {
+        LUA->GetField(-1, "getinfo");
+        if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) GetInfo_ref = GarrysMod::Lua::AutoReference(LUA);
+        else LUA->Pop();
+    }
+    if (GetInfo_ref) {
+        LUA->PushCFunction(Functions::DebugGetInfo);
+        LUA->SetField(-2, "getinfo");
+    }
+    LUA->Pop();
 
     BeginVersionCheck(LUA);
 #endif
@@ -193,38 +216,92 @@ void LuaAPI::Deinitialize() {
 
 #if IS_SERVERSIDE
 void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
-    if (AddCSLuaFile_ref.Push()) {
-        if (!LUA->IsType(1, GarrysMod::Lua::Type::String)) {
-            LUA->Call(0, 0);
-        } else {
-            std::string targetFile = LUA->GetString(1);
-            if (Utils::FindMoonScript(core->LUA, targetFile)) {
-                core->compiler->CompileFile(targetFile);
-                Utils::SetFileExtension(targetFile, "lua");
-            }
-
-            LUA->PushString(targetFile.c_str());
-            LUA->Call(1, 0);
-        }
+    AddCSLuaFile_ref.Push();
+    if (!LUA->IsType(1, GarrysMod::Lua::Type::String)) {
+        LUA->Call(0, 0);
     } else {
-        Warning("Oh no! Did moonloader broke AddCSLuaFile? That's not good!\n");
+        std::string targetFile = LUA->GetString(1);
+        if (Utils::FindMoonScript(core->LUA, targetFile)) {
+            core->compiler->CompileFile(targetFile);
+            Utils::SetFileExtension(targetFile, "lua");
+        }
+
+        LUA->PushString(targetFile.c_str());
+        LUA->Call(1, 0);
     }
 }
 
- bool LuaAPI::PreCacheFile(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path) {
-     DevMsg("[Moonloader] Precaching %s\n", path.c_str());
-     return core->compiler->CompileFile(path);
- }
+bool LuaAPI::PreCacheFile(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path) {
+    DevMsg("[Moonloader] Precaching %s\n", path.c_str());
+    return core->compiler->CompileFile(path);
+}
 
- void LuaAPI::PreCacheDir(GarrysMod::Lua::ILuaInterface* LUA, const std::string& startPath) {
-     for (auto file : core->fs->Find(Utils::JoinPaths(startPath, "*"), LUA->GetPathID())) {
-         std::string path = Utils::JoinPaths(startPath, file);
-         if (core->fs->IsDirectory(path, LUA->GetPathID())) {
-             PreCacheDir(LUA, path);
-         } else if (Utils::FileExtension(path) == "moon" || Utils::FileExtension(path) == "yue") {
-             PreCacheFile(LUA, path);
-         }
-     }
- }
+void LuaAPI::PreCacheDir(GarrysMod::Lua::ILuaInterface* LUA, const std::string& startPath) {
+    for (auto file : core->fs->Find(Utils::JoinPaths(startPath, "*"), LUA->GetPathID())) {
+        std::string path = Utils::JoinPaths(startPath, file);
+        if (core->fs->IsDirectory(path, LUA->GetPathID())) {
+            PreCacheDir(LUA, path);
+        } else if (Utils::FileExtension(path) == "moon" || Utils::FileExtension(path) == "yue") {
+            PreCacheFile(LUA, path);
+        }
+    }
+}
+
+inline void ModifyDebugInfo(GarrysMod::Lua::ILuaInterface* LUA, const Compiler::CompiledFile* info) {
+    Utils::PushString(LUA, info->full_source_path);
+    LUA->SetField(-2, "short_src");
+
+    Utils::PushString(LUA, '@' + info->full_source_path);
+    LUA->SetField(-2, "source");
+
+    LUA->GetField(-1, "currentline");
+    if (auto currentline = Utils::OptNumber(LUA, -1)) {
+        if (auto closestline = Utils::FindClosestLine(info->line_map, *currentline)) {
+            LUA->PushNumber(*closestline);
+            LUA->SetField(-3, "currentline");
+        }
+    }
+    LUA->Pop();
+
+    LUA->GetField(-1, "linedefined");
+    if (auto linedefined = Utils::OptNumber(LUA, -1)) {
+        if (auto closestline = Utils::FindClosestLine(info->line_map, *linedefined)) {
+            LUA->PushNumber(*closestline);
+            LUA->SetField(-3, "linedefined");
+        }
+    }
+    LUA->Pop();
+
+    LUA->GetField(-1, "lastlinedefined");
+    if (auto lastlinedefined = Utils::OptNumber(LUA, -1)) {
+        if (auto closestline = Utils::FindClosestLine(info->line_map, *lastlinedefined)) {
+            LUA->PushNumber(*closestline);
+            LUA->SetField(-3, "lastlinedefined");
+        }
+    }
+    LUA->Pop();
+}
+
+int LuaAPI::DebugGetInfo(GarrysMod::Lua::ILuaInterface* LUA) {
+    GetInfo_ref.Push();
+    int iArgs = LUA->Top() - 1;
+    for (int i = 1; i <= iArgs; i++) {
+        LUA->Push(i);
+    }
+    LUA->Call(iArgs, 1);
+
+    if (Core::cvar_detour_getinfo.GetBool() && LUA->IsType(-1, GarrysMod::Lua::Type::Table)) {
+        LUA->GetField(-1, "short_src");
+        if (auto path = Utils::GetString(LUA, -1); Utils::StartsWith(path, CACHE_PATH_LUA)) {
+            if (auto info = core->compiler->FindFileByFullOutputPath(path)) {
+                LUA->Push(-2);
+                ModifyDebugInfo(LUA, info);
+                LUA->Pop();
+            }
+        }
+        LUA->Pop();
+    }
+    return 1;
+}
 #endif
 

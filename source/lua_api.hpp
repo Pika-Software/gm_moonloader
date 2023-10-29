@@ -15,6 +15,7 @@ namespace MoonLoader {
         std::shared_ptr<Core> core;
     #if IS_SERVERSIDE
         GarrysMod::Lua::AutoReference AddCSLuaFile_ref;
+        GarrysMod::Lua::AutoReference GetInfo_ref;
     #endif
 
     public:
@@ -28,6 +29,7 @@ namespace MoonLoader {
         void AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA);
         bool PreCacheFile(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path);
         void PreCacheDir(GarrysMod::Lua::ILuaInterface* LUA, const std::string& startPath);
+        int DebugGetInfo(GarrysMod::Lua::ILuaInterface* LUA);
     #endif
     };
 }
