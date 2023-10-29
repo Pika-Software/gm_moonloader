@@ -16,10 +16,17 @@
 #include <detouring/classproxy.hpp>
 #include <detouring/hook.hpp>
 #include <GarrysMod/Lua/Interface.h>
+#include <tier1/convar.h>
 
 extern "C" {
     #include <lua.h>
 }
+
+ConVar MoonLoader::Core::cvar_detour_getinfo("moonloader_detour_getinfo", "1", FCVAR_ARCHIVE, "Detour debug.getinfo for better source lines");
+
+std::vector<ConVar*> moonloader_convars = {
+    &MoonLoader::Core::cvar_detour_getinfo
+};
 
 #define FILESYSTEM_INTERFACE_VERSION "VFileSystem022"
 inline IFileSystem* LoadFilesystem() {
@@ -173,6 +180,11 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID(), true);
     if (LUA->IsServer())
         fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
+
+    cvar = InterfacePointers::Cvar();
+    if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
+    for (ConVar* convar : moonloader_convars)
+        cvar->RegisterConCommand(convar);
 #endif
 
     lua_api = std::make_shared<LuaAPI>(shared_from_this());

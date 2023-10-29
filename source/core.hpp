@@ -9,6 +9,7 @@
 #include <vector>
 
 class IVEngineServer;
+class ConVar;
 
 namespace Detouring {
     class Hook;
@@ -39,6 +40,8 @@ namespace MoonLoader {
         std::shared_ptr<AutoRefresh> autorefresh;
         std::shared_ptr<ILuaInterfaceProxy> lua_interface_detour;
         std::shared_ptr<Errors> errors;
+
+        static ConVar cvar_detour_getinfo;
 
         static inline std::shared_ptr<Core> Create() { return std::make_shared<Core>(); }
         static std::shared_ptr<Core> Get(GarrysMod::Lua::ILuaBase* LUA);
