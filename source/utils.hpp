@@ -11,6 +11,7 @@
 #include <chrono>
 #include <optional>
 #include <memory>
+#include <unordered_map>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
