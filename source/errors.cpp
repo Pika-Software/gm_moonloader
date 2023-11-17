@@ -29,30 +29,30 @@ Errors::~Errors() {
     LUA->SetLuaGameCallback(callback);
 }
 
-void Errors::TransformStackEntry(GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry& entry) {
-    if (!Utils::StartsWith(entry.source, CACHE_PATH_LUA)) return; // TODO: Make it better
-    if (auto info = core->compiler->FindFileByFullOutputPath(entry.source)) {
-        entry.source = info->full_source_path;
-        if (const auto it = info->line_map.find(entry.line); it != info->line_map.end())
-            entry.line = it->second;
+void Errors::TransformStackEntry(std::string& source, int &line) {
+    if (!Utils::StartsWith(source, CACHE_PATH_LUA)) return; // TODO: Make it better
+    if (auto info = core->compiler->FindFileByFullOutputPath(source)) {
+        source = info->full_source_path;
+        if (const auto it = info->line_map.find(line); it != info->line_map.end())
+            line = it->second;
     }
 }
 
-std::optional<GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry> Errors::TransformErrorMessage(std::string& err) {
+std::optional<ErrorLine> Errors::TransformErrorMessage(std::string& error_message) {
     static std::regex ERROR_MESSAGE_REGEX("^(.*?):(\\d+): (.+)$", 
         std::regex_constants::optimize | std::regex_constants::ECMAScript);
 
     std::smatch match;
-    if (std::regex_search(err, match, ERROR_MESSAGE_REGEX)) {
-        GarrysMod::Lua::ILuaGameCallback::CLuaError::StackEntry entry;
-        entry.source = match[1].str();
-        entry.line = std::stoi(match[2].str());
-        std::string message = match[3].str();
+    if (std::regex_search(error_message, match, ERROR_MESSAGE_REGEX)) {
+        ErrorLine error;
+        error.source = match[1].str();
+        error.line = std::stoi(match[2].str());
+        error.message = match[3].str();
 
-        TransformStackEntry(entry);
-        TransformErrorMessage(message);
-        err = entry.source + ":" + std::to_string(entry.line) + ": " + message;
-        return entry;
+        TransformStackEntry(error);
+        TransformErrorMessage(error.message);
+        error_message = error.to_string();
+        return error;
     }
     return {};
 }
@@ -81,17 +81,21 @@ inline void TrimLines(std::map<int, std::string>& lines) {
     }
 }
 
-void Errors::PrintSourceFile(std::string_view code, int error_line) {
-    auto lines = ReadLines(code, std::max(error_line - 5, 0), error_line + 2);
+void Errors::PrintSourceFile(std::string_view code, const ErrorLine& error) {
+    auto lines = ReadLines(code, std::max(error.line - 5, 0), error.line + 2);
 
     TrimLines(lines);
 
     for (const auto& [num, line] : lines) {
-        std::stringstream ss;
-        ss << " " << (error_line == num ? "-->" : "") << "\t";
-        ss << num << "\t";
-        ss << "| " << line;
-        LUA->Msg("%s\n", ss.str().c_str());
+        LUA->MsgColour(Color(125, 125, 125, 255), " %-4d | ", num);
+        LUA->MsgColour(Color(175, 192, 198, 255), "%s\n", line.c_str());
+
+        // Check if current line is where error happened
+        if (num == error.line) {
+            size_t spaces = std::distance(line.cbegin(), std::find_if_not(line.cbegin(), line.cend(), ::isspace));
+            LUA->MsgColour(Color(125, 125, 125, 255), "      | ", num);
+            LUA->MsgColour(Color(240, 62, 62, 255), "%s^ %s\n", std::string(spaces, ' ').c_str(), error.message.c_str());
+        }
     }
 }
 
@@ -108,7 +112,7 @@ void Errors::LuaError(const GarrysMod::Lua::ILuaGameCallback::CLuaError *error) 
     if (error_source) {
         auto code = core->fs->ReadTextFile(error_source->source, "garrysmod");
         if (!code.empty())
-            PrintSourceFile(code, error_source->line);
+            PrintSourceFile(code, error_source.value());
     }
 }
 
