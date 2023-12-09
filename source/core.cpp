@@ -198,6 +198,9 @@ void Core::Deinitialize() {
     fs->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID());
     if (LUA->IsServer())
         fs->RemoveSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl");
+    if (cvar)
+        for (ConVar* convar : moonloader_convars)
+            cvar->UnregisterConCommand(convar);
 #endif
 
     if (lua_api) lua_api->Deinitialize();
