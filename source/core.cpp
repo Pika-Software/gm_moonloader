@@ -37,6 +37,7 @@ inline IFileSystem* LoadFilesystem() {
 class MoonLoader::ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, MoonLoader::ILuaInterfaceProxy> {
 public:
     std::unordered_set<std::string> included_files;
+    std::unordered_set<std::string> regular_scripts;
     std::unique_ptr<Errors> clientside_error_handler;
 
     ILuaInterfaceProxy(GarrysMod::Lua::ILuaInterface* LUA) {
@@ -81,9 +82,14 @@ public:
         if (!core || fileName == NULL)
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
+        // If file was included before any modifications, then just skip any processing
+        if (regular_scripts.find(fileName) != regular_scripts.end())
+            return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
+
         auto& included_files = core->lua_interface_detour->included_files;
         std::string path = fileName;
-        if (Utils::FindMoonScript(core->LUA, path)) {
+        bool is_moonscript = Utils::FindMoonScript(core->LUA, path);
+        if (is_moonscript) {
             if (runReason[0] != '!') {
                 // Usually when runReason doesn't start with "!",
                 // it means that it was included by "include"
@@ -121,7 +127,13 @@ public:
             Utils::SetFileExtension(path, "lua"); // Do not forget to pass lua file to gmod!!
         }
 
-        return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, path.c_str(), run, showErrors, runReason, noReturns);
+        bool success = Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, path.c_str(), run, showErrors, runReason, noReturns);
+        if (success && !is_moonscript)
+            // If file wasn't detected as moonscript, and successfully was included by Garry's Mod
+            // Just ignore any processing later to not break anything
+            regular_scripts.insert(path);
+
+        return success;
     }
 };
 #endif
