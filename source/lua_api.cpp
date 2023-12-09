@@ -221,7 +221,7 @@ void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
         LUA->Call(0, 0);
     } else {
         std::string targetFile = LUA->GetString(1);
-        if (Utils::FindMoonScript(core->LUA, targetFile)) {
+        if (core->FindMoonScript(targetFile)) {
             core->compiler->CompileFile(targetFile);
             Utils::SetFileExtension(targetFile, "lua");
         }

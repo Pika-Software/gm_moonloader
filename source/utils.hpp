@@ -74,6 +74,23 @@ namespace MoonLoader::Utils {
             return std::string(path) + std::string(subPath);
         return std::string(path) + '/' + std::string(subPath);
     }
+    inline std::string JoinPaths(std::initializer_list<std::string_view> paths) {
+        std::string result = {};
+        for (auto& path : paths) {
+            if (result.empty() || result.back() == '/' || result.back() == '\\') {
+                result.append(path);
+            } else if (path.empty()) {
+                continue;
+            } else {
+                result.push_back('/');
+                result.append(path);
+            }
+        }
+        return result;
+    }
+    template <typename... Paths> inline std::string JoinPaths(Paths... paths) {
+        return JoinPaths({std::forward<Paths>(paths)...});
+    }
     // dir/file.ext -> dir/file
     inline void StripFileExtension(std::string& path) {
         auto namePos = path.find_last_of('.');
@@ -182,7 +199,6 @@ namespace MoonLoader::Utils {
         LUA->PushString("developer");
         return LuaBoolFromValue(LUA, "cvars.Bool", 1).value_or(false);
     }
-    bool FindMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string& path);
 
     // ---------------------------
     // - Other                   -

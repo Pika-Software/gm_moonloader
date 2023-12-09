@@ -97,7 +97,7 @@ public:
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
         std::string path = fileName;
-        bool is_moonscript = Utils::FindMoonScript(core->LUA, path);
+        bool is_moonscript = core->FindMoonScript(path);
         if (is_moonscript) {
             if (IsRefreshableRunReason(runReason)) {
                 // Usually when runReason doesn't start with "!",
@@ -167,6 +167,51 @@ std::vector<std::shared_ptr<Core>> Core::GetAll() {
     return cores;
 }
 
+bool Core::FindMoonScript(std::string& path) {
+    const char* currentDir = LUA->GetPath();
+    const char* pathID = LUA->GetPathID();
+    if (currentDir) {
+        std::string absolutePath = Utils::JoinPaths(currentDir, path);
+        Utils::SetFileExtension(absolutePath, "yue");
+        if (fs->Exists(absolutePath, pathID)) {
+            path = std::move(absolutePath);
+            return true;
+        }
+        Utils::SetFileExtension(absolutePath, "moon");
+        if (fs->Exists(absolutePath, pathID)) {
+            path = std::move(absolutePath);
+            return true;
+        }
+    }
+
+    std::string moonPath = path;
+    Utils::SetFileExtension(moonPath, "yue");
+    if (fs->Exists(moonPath, pathID)) {
+        path = std::move(moonPath);
+        return true;
+    }
+    Utils::SetFileExtension(moonPath, "moon");
+    if (fs->Exists(moonPath, pathID)) {
+        path = std::move(moonPath);
+        return true;
+    }
+    return false;
+}
+
+void Core::PrepareFiles() {
+    // Since Garry's Mod uses different method of finding init.lua in gamemodes
+    // we need to precompile files, so Garry's Mod can find them
+    
+    // Preparing files for gamemodes
+    for (auto gamemode : fs->Find("gamemodes/*", "GAME")) {
+        if (fs->IsDirectory(Utils::JoinPaths("gamemodes", gamemode), "GAME")) {
+            std::string init_file = Utils::JoinPaths(gamemode, "gamemode/cl_init.lua");
+            if (FindMoonScript(init_file))
+                compiler->CompileFile(init_file);
+        }
+    }
+}
+
 void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     this->LUA = LUA;
 
@@ -206,6 +251,8 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
     for (ConVar* convar : moonloader_convars)
         cvar->RegisterConCommand(convar);
+
+    PrepareFiles();
 #endif
 
     lua_api = std::make_shared<LuaAPI>(shared_from_this());

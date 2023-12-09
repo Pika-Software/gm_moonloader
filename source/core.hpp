@@ -48,6 +48,10 @@ namespace MoonLoader {
         static void Remove(GarrysMod::Lua::ILuaBase* LUA);
         static std::vector<std::shared_ptr<Core>> GetAll();
 
+        // Finds moonscript file relative to LUA search path
+        bool FindMoonScript(std::string& path);
+        void PrepareFiles();
+
         void Initialize(GarrysMod::Lua::ILuaInterface* LUA);
         void Deinitialize();
     };
