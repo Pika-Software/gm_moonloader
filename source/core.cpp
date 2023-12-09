@@ -77,20 +77,29 @@ public:
         if (auto core = Core::Get(This()); core && core->watchdog) core->watchdog->Think();
     }
 
+    static bool IsRefreshableRunReason(std::string_view runReason) {
+        if (runReason[0] != '!')
+            return true;
+
+        return runReason == "!ENT" || runReason == "!WEP" || runReason == "!GM";
+    }
+
     virtual bool FindAndRunScript(const char* fileName, bool run, bool showErrors, const char* runReason, bool noReturns) {
         auto core = Core::Get(This());
         if (!core || fileName == NULL)
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
+        auto& included_files = core->lua_interface_detour->included_files;
+        auto& regular_scripts = core->lua_interface_detour->regular_scripts;
+
         // If file was included before any modifications, then just skip any processing
         if (regular_scripts.find(fileName) != regular_scripts.end())
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
-        auto& included_files = core->lua_interface_detour->included_files;
         std::string path = fileName;
         bool is_moonscript = Utils::FindMoonScript(core->LUA, path);
         if (is_moonscript) {
-            if (runReason[0] != '!') {
+            if (IsRefreshableRunReason(runReason)) {
                 // Usually when runReason doesn't start with "!",
                 // it means that it was included by "include"
                 // Allow auto-reloads for this guy in a future
