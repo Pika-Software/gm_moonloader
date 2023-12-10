@@ -36,7 +36,7 @@ inline IFileSystem* LoadFilesystem() {
 
 class MoonLoader::ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, MoonLoader::ILuaInterfaceProxy> {
 public:
-    std::unordered_set<std::string> included_files;
+    std::unordered_set<std::string> autorefresh_scripts;
     std::unordered_set<std::string> regular_scripts;
     std::unique_ptr<Errors> clientside_error_handler;
 
@@ -77,19 +77,12 @@ public:
         if (auto core = Core::Get(This()); core && core->watchdog) core->watchdog->Think();
     }
 
-    static bool IsRefreshableRunReason(std::string_view runReason) {
-        if (runReason[0] != '!')
-            return true;
-
-        return runReason == "!ENT" || runReason == "!WEP" || runReason == "!GM";
-    }
-
     virtual bool FindAndRunScript(const char* fileName, bool run, bool showErrors, const char* runReason, bool noReturns) {
         auto core = Core::Get(This());
         if (!core || fileName == NULL)
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
-        auto& included_files = core->lua_interface_detour->included_files;
+        auto& autorefresh_scripts = core->lua_interface_detour->autorefresh_scripts;
         auto& regular_scripts = core->lua_interface_detour->regular_scripts;
 
         // If file was included before any modifications, then just skip any processing
@@ -99,26 +92,20 @@ public:
         std::string path = fileName;
         bool is_moonscript = core->FindMoonScript(path);
         if (is_moonscript) {
-            if (IsRefreshableRunReason(runReason)) {
-                // Usually when runReason doesn't start with "!",
-                // it means that it was included by "include"
-                // Allow auto-reloads for this guy in a future
-                included_files.insert(path);
-            }
-
-            if (strcmp(runReason, "!RELOAD") == 0) {
-                // All my homies hate auto-reloads by gmod
-                return false;
-            }
+            // All my homies hate auto-reloads by gmod
+            if (strcmp(runReason, "!RELOAD") == 0) return false;
 
             if (strcmp(runReason, "!MOONRELOAD") == 0) {
                 // Auto-reloads by moonloader is da best defacto
                 runReason = "!RELOAD";
-                if (included_files.find(path) == included_files.end()) {
-                    // File wasn't included before? *heavy voice* Not good.
+                if (autorefresh_scripts.find(path) == autorefresh_scripts.end()) {
+                    // File isn't in autorefresh list? *heavy voice* Not good.
                     return false;
                 }
             }
+
+            // If `run` boolean is true, then we should autorefresh this file in the future
+            if (run) autorefresh_scripts.insert(path);
 
             // Alrighty, everything safe and we can with no worries compile! Yay!
             if (!core->compiler->CompileFile(path))
