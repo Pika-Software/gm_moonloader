@@ -6,6 +6,8 @@
 
 #include <moonengine/engine.hpp>
 
+using namespace MoonLoader;
+
 #if IS_SERVERSIDE
 #include "filesystem.hpp"
 #include "compiler.hpp"
@@ -23,15 +25,15 @@ extern "C" {
     #include <lua.h>
 }
 
-ConVar MoonLoader::Core::cvar_detour_getinfo("moonloader_detour_getinfo", "1", FCVAR_ARCHIVE, "Detour debug.getinfo for better source lines");
+ConVar Core::cvar_detour_getinfo("moonloader_detour_getinfo", "1", FCVAR_ARCHIVE, "Detour debug.getinfo for better source lines");
 
 std::vector<ConVar*> moonloader_convars = {
-    &MoonLoader::Core::cvar_detour_getinfo
+    &Core::cvar_detour_getinfo
 };
 
 #define FILESYSTEM_INTERFACE_VERSION "VFileSystem022"
 inline IFileSystem* LoadFilesystem() {
-    auto iface = MoonLoader::Utils::LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION);
+    auto iface = Utils::LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION);
     return iface != nullptr ? iface : InterfacePointers::FileSystem();
 }
 
@@ -184,8 +186,6 @@ bool Core::FindMoonScript(std::string& path) {
 //    }
 //}
 #endif
-
-using namespace MoonLoader;
 
 std::unordered_map<GarrysMod::Lua::ILuaInterface*, std::shared_ptr<Core>> g_Cores;
 
