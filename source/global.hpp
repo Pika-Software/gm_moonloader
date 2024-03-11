@@ -22,8 +22,9 @@ struct Color {
 
 namespace MoonLoader {
     static Color MESSAGE_COLOR = {255, 236, 153, 255};
-#define CACHE_PATH "cache/moonloader/"
-#define CACHE_PATH_LUA "cache/moonloader/lua/"
+    #define CACHE_PATH "cache/moonloader/"
+    #define CACHE_PATH_LUA CACHE_PATH "lua/"
+    #define CACHE_PATH_GAMEMODES CACHE_PATH "gamemodes/"
 }
 
 #endif //MOONLOADER_GLOBAL_HPP

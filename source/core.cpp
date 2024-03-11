@@ -17,6 +17,7 @@
 #include <detouring/hook.hpp>
 #include <GarrysMod/Lua/Interface.h>
 #include <tier1/convar.h>
+#include <GarrysMod/Lua/LuaShared.h>
 
 extern "C" {
     #include <lua.h>
@@ -82,6 +83,7 @@ public:
         if (!core || fileName == NULL)
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
+        //This()->MsgColour(This()->IsServer() ? Color{128,128,255,255} : Color{255, 255, 128, 255}, "%s [%s] %s %s %s\n", fileName, runReason, run ? "run" : "find", showErrors ? "withErrors" : "silent", noReturns ? "noReturns" : "withReturns");
         auto& autorefresh_scripts = core->lua_interface_detour->autorefresh_scripts;
         auto& regular_scripts = core->lua_interface_detour->regular_scripts;
 
@@ -92,24 +94,26 @@ public:
         std::string path = fileName;
         bool is_moonscript = core->FindMoonScript(path);
         if (is_moonscript) {
-            // All my homies hate auto-reloads by gmod
-            if (strcmp(runReason, "!RELOAD") == 0) return false;
+            //// All my homies hate auto-reloads by gmod
+            //if (strcmp(runReason, "!RELOAD") == 0) return false;
 
-            if (strcmp(runReason, "!MOONRELOAD") == 0) {
-                // Auto-reloads by moonloader is da best defacto
-                runReason = "!RELOAD";
-                if (autorefresh_scripts.find(path) == autorefresh_scripts.end()) {
-                    // File isn't in autorefresh list? *heavy voice* Not good.
-                    return false;
-                }
-            }
-
-            // If `run` boolean is true, then we should autorefresh this file in the future
-            if (run) autorefresh_scripts.insert(path);
+            //// If `run` boolean is true, then we should autorefresh this file in the future
+            //if (run) autorefresh_scripts.insert(path);
 
             // Alrighty, everything safe and we can with no worries compile! Yay!
             if (!core->compiler->CompileFile(path))
                 return false;
+
+            if (strcmp(runReason, "!MOONRELOAD") == 0) {
+                //// Auto-reloads by moonloader is da best defacto
+                //runReason = "!RELOAD";
+                //if (autorefresh_scripts.find(path) == autorefresh_scripts.end()) {
+                //    // File isn't in autorefresh list? *heavy voice* Not good.
+                //    return false;
+                //}
+
+                return false;
+            }
 
             // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
             #if SYSTEM_IS_MACOSX
@@ -159,6 +163,7 @@ bool Core::FindMoonScript(std::string& path) {
     const char* pathID = LUA->GetPathID();
     if (currentDir) {
         std::string absolutePath = Utils::JoinPaths(currentDir, path);
+        Utils::NormalizePath(absolutePath);
         Utils::SetFileExtension(absolutePath, "yue");
         if (fs->Exists(absolutePath, pathID)) {
             path = std::move(absolutePath);
@@ -172,6 +177,7 @@ bool Core::FindMoonScript(std::string& path) {
     }
 
     std::string moonPath = path;
+    Utils::NormalizePath(moonPath);
     Utils::SetFileExtension(moonPath, "yue");
     if (fs->Exists(moonPath, pathID)) {
         path = std::move(moonPath);
@@ -185,19 +191,19 @@ bool Core::FindMoonScript(std::string& path) {
     return false;
 }
 
-void Core::PrepareFiles() {
-    // Since Garry's Mod uses different method of finding init.lua in gamemodes
-    // we need to precompile files, so Garry's Mod can find them
-    
-    // Preparing files for gamemodes
-    for (auto gamemode : fs->Find("gamemodes/*", "GAME")) {
-        if (fs->IsDirectory(Utils::JoinPaths("gamemodes", gamemode), "GAME")) {
-            std::string init_file = Utils::JoinPaths(gamemode, "gamemode/cl_init.lua");
-            if (FindMoonScript(init_file))
-                compiler->CompileFile(init_file);
-        }
-    }
-}
+//void Core::PrepareFiles() {
+//    // Since Garry's Mod uses different method of finding init.lua in gamemodes
+//    // we need to precompile files, so Garry's Mod can find them
+//    
+//    // Preparing files for gamemodes
+//    for (auto gamemode : fs->Find("gamemodes/*", "GAME")) {
+//        if (fs->IsDirectory(Utils::JoinPaths("gamemodes", gamemode), "GAME")) {
+//            std::string init_file = Utils::JoinPaths(gamemode, "gamemode/cl_init.lua");
+//            if (FindMoonScript(init_file))
+//                compiler->CompileFile(init_file);
+//        }
+//    }
+//}
 
 void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     this->LUA = LUA;
@@ -225,21 +231,26 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     autorefresh = std::make_shared<AutoRefresh>(shared_from_this());
 #endif
 
-    DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH_LUA, "GAME"));
+    DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
     fs->CreateDirs(CACHE_PATH_LUA);
+    //fs->CreateDirs(CACHE_PATH_GAMEMODES);
     fs->AddSearchPath("garrysmod/" CACHE_PATH, "GAME", true);
     fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "MOONLOADER");
+    //fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, "MOONLOADER");
 
     fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID(), true);
-    if (LUA->IsServer())
+    //fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, LUA->GetPathID(), true);
+    if (LUA->IsServer()) {
         fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
+        fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, "lcl", true);
+    }
 
     cvar = InterfacePointers::Cvar();
     if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
     for (ConVar* convar : moonloader_convars)
         cvar->RegisterConCommand(convar);
 
-    PrepareFiles();
+    //PrepareFiles();
 #endif
 
     lua_api = std::make_shared<LuaAPI>(shared_from_this());
