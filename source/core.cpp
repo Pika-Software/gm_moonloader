@@ -136,27 +136,6 @@ public:
         return success;
     }
 };
-#endif
-
-using namespace MoonLoader;
-
-std::unordered_map<GarrysMod::Lua::ILuaInterface*, std::shared_ptr<Core>> g_Cores;
-
-std::shared_ptr<Core> Core::Get(GarrysMod::Lua::ILuaBase* LUA) {
-    auto it = g_Cores.find(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
-    return it != g_Cores.end() ? it->second : nullptr;
-}
-
-void Core::Remove(GarrysMod::Lua::ILuaBase* LUA) {
-    g_Cores.erase(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
-}
-
-std::vector<std::shared_ptr<Core>> Core::GetAll() {
-    std::vector<std::shared_ptr<Core>> cores;
-    for (auto& [_, core] : g_Cores)
-        cores.push_back(core);
-    return cores;
-}
 
 bool Core::FindMoonScript(std::string& path) {
     const char* currentDir = LUA->GetPath();
@@ -204,6 +183,27 @@ bool Core::FindMoonScript(std::string& path) {
 //        }
 //    }
 //}
+#endif
+
+using namespace MoonLoader;
+
+std::unordered_map<GarrysMod::Lua::ILuaInterface*, std::shared_ptr<Core>> g_Cores;
+
+std::shared_ptr<Core> Core::Get(GarrysMod::Lua::ILuaBase* LUA) {
+    auto it = g_Cores.find(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
+    return it != g_Cores.end() ? it->second : nullptr;
+}
+
+void Core::Remove(GarrysMod::Lua::ILuaBase* LUA) {
+    g_Cores.erase(reinterpret_cast<GarrysMod::Lua::ILuaInterface*>(LUA));
+}
+
+std::vector<std::shared_ptr<Core>> Core::GetAll() {
+    std::vector<std::shared_ptr<Core>> cores;
+    for (auto& [_, core] : g_Cores)
+        cores.push_back(core);
+    return cores;
+}
 
 void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     this->LUA = LUA;
