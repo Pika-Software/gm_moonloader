@@ -72,4 +72,3 @@ jobs:
             ./*.dll
             ./*.pdb
           if-no-files-found: error
-          compression-level: 9
