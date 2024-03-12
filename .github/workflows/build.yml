@@ -67,7 +67,7 @@ jobs:
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os == 'windows-latest' && 'Windows' || matrix.os == 'macos-latest' && 'MacOS' || 'Linux' }}
+          name: moonloader-${{matrix.os}}-${{matrix.arch}}-${{env.BUILD_TYPE}}
           path: |
             ./*.dll
             ./*.pdb
