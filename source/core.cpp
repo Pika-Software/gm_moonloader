@@ -39,7 +39,6 @@ inline IFileSystem* LoadFilesystem() {
 
 class MoonLoader::ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, MoonLoader::ILuaInterfaceProxy> {
 public:
-    std::unordered_set<std::string> autorefresh_scripts;
     std::unordered_set<std::string> regular_scripts;
     std::unique_ptr<Errors> clientside_error_handler;
 
@@ -86,7 +85,6 @@ public:
             return Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, fileName, run, showErrors, runReason, noReturns);
 
         //This()->MsgColour(This()->IsServer() ? Color{128,128,255,255} : Color{255, 255, 128, 255}, "%s [%s] %s %s %s\n", fileName, runReason, run ? "run" : "find", showErrors ? "withErrors" : "silent", noReturns ? "noReturns" : "withReturns");
-        auto& autorefresh_scripts = core->lua_interface_detour->autorefresh_scripts;
         auto& regular_scripts = core->lua_interface_detour->regular_scripts;
 
         // If file was included before any modifications, then just skip any processing
@@ -96,44 +94,38 @@ public:
         std::string path = fileName;
         bool is_moonscript = core->FindMoonScript(path);
         if (is_moonscript) {
-            //// All my homies hate auto-reloads by gmod
-            //if (strcmp(runReason, "!RELOAD") == 0) return false;
-
-            //// If `run` boolean is true, then we should autorefresh this file in the future
-            //if (run) autorefresh_scripts.insert(path);
-
             // Alrighty, everything safe and we can with no worries compile! Yay!
             if (!core->compiler->CompileFile(path))
                 return false;
 
+            // Compiler will trigger file gmod autoreload, so we just skip moonloader autoreload
             if (strcmp(runReason, "!MOONRELOAD") == 0) {
-                //// Auto-reloads by moonloader is da best defacto
-                //runReason = "!RELOAD";
-                //if (autorefresh_scripts.find(path) == autorefresh_scripts.end()) {
-                //    // File isn't in autorefresh list? *heavy voice* Not good.
-                //    return false;
-                //}
-
+#if !SYSTEM_IS_MACOSX
                 return false;
+#else
+                // But on OSX we don't have vanilla gmod autoreload :(
+                runReason = "!RELOAD";
+#endif
             }
-
-            // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
-            #if SYSTEM_IS_MACOSX
-            if (strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
-                if (!core->autorefresh->Sync(path))
-                    Warning("[Moonloader] Failed to autorefresh %s\n", path.c_str());
-            }
-            #endif
 
             path = fileName; // Preserve original file path for the god's sake
             Utils::SetFileExtension(path, "lua"); // Do not forget to pass lua file to gmod!!
         }
 
         bool success = Call(&GarrysMod::Lua::ILuaInterface::FindAndRunScript, path.c_str(), run, showErrors, runReason, noReturns);
-        if (success && !is_moonscript)
+        if (success && !is_moonscript) {
             // If file wasn't detected as moonscript, and successfully was included by Garry's Mod
             // Just ignore any processing later to not break anything
             regular_scripts.insert(path);
+        }
+        
+#if SYSTEM_IS_MACOSX
+        // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
+        if (success && strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
+            if (!core->autorefresh->Sync(path))
+                Warning("[Moonloader] Failed to autorefresh %s\n", path.c_str());
+        }
+#endif
 
         return success;
     }
