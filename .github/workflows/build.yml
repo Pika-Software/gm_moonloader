@@ -64,10 +64,16 @@ jobs:
       - name: Build project
         run: cmake --build build -j -t moonloader --config ${{env.BUILD_TYPE}}
 
+      - name: Configure project (Clientside)
+        run: cmake -B build -S . -DCLIENT_DLL=ON
+      
+      - name: Build project (Clientside)
+        run: cmake --build build -j -t moonloader --config ${{env.BUILD_TYPE}}
+
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
-          name: moonloader-${{matrix.os}}-${{matrix.arch}}-${{env.BUILD_TYPE}}
+          name: ${{matrix.os}}-${{matrix.arch}}-${{env.BUILD_TYPE}}
           path: |
             ./*.dll
             ./*.pdb
