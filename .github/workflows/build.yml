@@ -73,4 +73,3 @@ jobs:
             ./*.pdb
           if-no-files-found: error
           compression-level: 9
-          retention-days: 14
