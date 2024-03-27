@@ -70,6 +70,13 @@ jobs:
       - name: Build project (Clientside)
         run: cmake --build build -j -t moonloader --config ${{env.BUILD_TYPE}}
 
+      - name: Strip debug information from binaries and keep them outside (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-20.04' }}
+        run: |
+          find *.dll -exec objcopy --only-keep-debug {} {}.pdb \;
+          find *.dll -exec objcopy --strip-debug {} \;
+          find *.dll -exec objcopy --add-gnu-debuglink {}.pdb {} \;
+
       - name: "Upload artifacts"
         uses: actions/upload-artifact@v4
         with:
