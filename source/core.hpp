@@ -24,7 +24,6 @@ namespace MoonLoader {
     class Filesystem;
     class Compiler;
     class Watchdog;
-    class AutoRefresh;
     class ILuaInterfaceProxy;
     class Errors;
 
@@ -37,7 +36,6 @@ namespace MoonLoader {
         IVEngineServer* engine_server = nullptr;
         std::shared_ptr<Watchdog> watchdog;
         std::shared_ptr<Compiler> compiler;
-        std::shared_ptr<AutoRefresh> autorefresh;
         std::shared_ptr<ILuaInterfaceProxy> lua_interface_detour;
         std::shared_ptr<Errors> errors;
 

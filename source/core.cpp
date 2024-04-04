@@ -12,7 +12,6 @@ using namespace MoonLoader;
 #include "filesystem.hpp"
 #include "compiler.hpp"
 #include "watchdog.hpp"
-#include "autorefresh.hpp"
 #include "errors.hpp"
 #include <GarrysMod/InterfacePointers.hpp>
 #include <detouring/classproxy.hpp>
@@ -20,6 +19,10 @@ using namespace MoonLoader;
 #include <GarrysMod/Lua/Interface.h>
 #include <tier1/convar.h>
 #include <GarrysMod/Lua/LuaShared.h>
+
+#if SYSTEM_IS_MACOSX
+#include <eiface.h>
+#endif
 
 extern "C" {
     #include <lua.h>
@@ -66,9 +69,6 @@ public:
             if (core->LUA->IsServer()) {
                 core->lua_interface_detour->clientside_error_handler
                     = std::make_unique<Errors>(core, This());
-                
-                if (core->autorefresh)
-                    core->autorefresh->SetClientLua(This());
                 break;
             }
         }
@@ -100,12 +100,14 @@ public:
 
             // Compiler will trigger file gmod autoreload, so we just skip moonloader autoreload
             if (strcmp(runReason, "!MOONRELOAD") == 0) {
-#if !SYSTEM_IS_MACOSX
-                return false;
-#else
-                // But on OSX we don't have vanilla gmod autoreload :(
-                runReason = "!RELOAD";
+#if SYSTEM_IS_MACOSX
+                // Since file won't be updated, we need to manually trigger autorefresh
+                // Thank god Rubat made this command for us <3
+                std::string cmd = "lua_refresh_file " + path;
+                Utils::SetFileExtension(cmd, "lua");
+                core->engine_server->GMOD_RawServerCommand(cmd.c_str());
 #endif
+                return false;
             }
 
             path = fileName; // Preserve original file path for the god's sake
@@ -118,14 +120,6 @@ public:
             // Just ignore any processing later to not break anything
             regular_scripts.insert(path);
         }
-        
-#if SYSTEM_IS_MACOSX
-        // If file was reloaded, then we need to reload it on clients (for OSX only ofc)
-        if (success && strcmp(runReason, "!RELOAD") == 0 && core->autorefresh) {
-            if (!core->autorefresh->Sync(path))
-                Warning("[Moonloader] Failed to autorefresh %s\n", path.c_str());
-        }
-#endif
 
         return success;
     }
@@ -211,7 +205,6 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
 #if IS_SERVERSIDE
     fs = std::make_shared<Filesystem>(LoadFilesystem());
-    engine_server = InterfacePointers::VEngineServer();
     watchdog = std::make_shared<Watchdog>(shared_from_this(), fs);
     watchdog->Start();
     compiler = std::make_shared<Compiler>(shared_from_this(), fs, moonengine, watchdog);
@@ -220,7 +213,8 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>(LUA);
 
 #if SYSTEM_IS_MACOSX
-    autorefresh = std::make_shared<AutoRefresh>(shared_from_this());
+    engine_server = InterfacePointers::VEngineServer();
+    if (engine_server == nullptr) throw std::runtime_error("failed to get IVEngineServer interface");
 #endif
 
     DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
@@ -263,7 +257,6 @@ void Core::Deinitialize() {
 
     if (lua_api) lua_api->Deinitialize();
     lua_api.reset();
-    autorefresh.reset();
     lua_interface_detour.reset();
     errors.reset();
     compiler.reset();
