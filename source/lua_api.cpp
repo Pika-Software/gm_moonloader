@@ -3,6 +3,7 @@
 #include "global.hpp"
 #include "core.hpp"
 #include "utils.hpp"
+#include "compiler.hpp"
 
 #include <GarrysMod/Lua/Interface.h>
 #include <moonengine/engine.hpp>
@@ -13,6 +14,38 @@
 #include "filesystem.hpp"
 #include <tier1/convar.h>
 #endif
+
+extern "C" {
+#include "lauxlib.h"
+#include "lua.h"
+#include "lualib.h"
+int luaopen_yue(lua_State* L);
+} // extern "C"
+
+static const luaL_Reg lualibs[] = {
+    {"", luaopen_base},
+    {LUA_LOADLIBNAME, luaopen_package},
+    {LUA_TABLIBNAME, luaopen_table},
+    //   {LUA_IOLIBNAME, luaopen_io},
+    //   {LUA_OSLIBNAME, luaopen_os},
+    {LUA_STRLIBNAME, luaopen_string},
+    {LUA_MATHLIBNAME, luaopen_math},
+    {LUA_DBLIBNAME, luaopen_debug},
+    {NULL, NULL}
+};
+
+void yue_openlibs(void* state) {
+    lua_State* L = static_cast<lua_State*>(state);
+    const luaL_Reg *lib = lualibs;
+    for (; lib->func; lib++) {
+        lua_pushcfunction(L, lib->func);
+        lua_pushstring(L, lib->name);
+        lua_call(L, 1, 0);
+    }
+	lua_pushcfunction(L, luaopen_yue);
+	lua_call(L, 0, 0);
+	lua_pop(L, 1);
+}
 
 using namespace MoonLoader;
 
@@ -86,8 +119,9 @@ namespace Functions {
         if (auto core = Core::Get(LUA)) { 
             auto input = Utils::GetString(LUA, 1);
             yue::YueConfig config;
+            config.options["target"] = "5.2"; // LuaJIT is 5.2 compat
             if (LUA->Top() >= 2) ParseYueConfig(LUA, config, 2);
-            auto result = yue::YueCompiler().compile(input, config);
+            auto result = yue::YueCompiler(nullptr, yue_openlibs).compile(input, config);
             if (result.error) LUA->PushNil();
             else Utils::PushString(LUA, result.codes);
             if (result.error) Utils::PushString(LUA, result.error->displayMessage);

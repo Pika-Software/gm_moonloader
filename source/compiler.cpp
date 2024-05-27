@@ -11,6 +11,8 @@
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <regex>
 
+void yue_openlibs(void* state);
+
 using namespace MoonLoader;
 
 std::unordered_map<int, int> ParseYueLines(std::string_view code) {
@@ -50,7 +52,9 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
         // Yeah.. for every compilation we need to recraete yuecompiler
         // You might ask why? Because Yuecompiler does not
         // clear its internal state after compilation
-        auto info = yue::YueCompiler().compile(code);
+        yue::YueConfig config;
+        config.options["target"] = "5.2"; // LuaJIT is 5.2 compat
+        auto info = yue::YueCompiler(nullptr, yue_openlibs).compile(code, config);
         if (info.error) {
             Warning("[Moonloader] Yuescript compilation of '%s' failed:\n%s\n", path.c_str(), info.error->displayMessage.c_str());
             return false;

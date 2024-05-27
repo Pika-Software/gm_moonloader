@@ -11,8 +11,10 @@ add_library(libyue
 	"${YUESCRIPT_SRC}/yuescript/yue_ast.cpp"
 	"${YUESCRIPT_SRC}/yuescript/yue_parser.cpp"
 	"${YUESCRIPT_SRC}/yuescript/yue_compiler.cpp"
-	# "${YUESCRIPT_SRC}/yuescript/yuescript.cpp"
+	"${YUESCRIPT_SRC}/yuescript/yuescript.cpp"
 )
 
+target_link_libraries(libyue PRIVATE lua::lib)
+
 target_include_directories(libyue PUBLIC ${YUESCRIPT_SRC})
-target_compile_definitions(libyue PRIVATE YUE_NO_MACRO YUE_COMPILER_ONLY)
+target_compile_definitions(libyue PRIVATE)
