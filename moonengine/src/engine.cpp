@@ -24,22 +24,22 @@ inline void push_moon_options(lua_State* L, const CompileOptions& options = {}) 
 }
 
 inline size_t lua_gc_count(lua_State* L) {
-    return lua_gc(L, LUA_GCCOUNT) * 1024 + lua_gc(L, LUA_GCCOUNTB);
+    return lua_gc(L, LUA_GCCOUNT, 0) * 1024 + lua_gc(L, LUA_GCCOUNTB, 0);
 }
 
 inline int print(lua_State* L) {
     int top = lua_gettop(L);
     for (int i = 0; i < top; i++) {
-        printf("%s\t", luaL_tolstring(L, i + 1, 0));
+        printf("%s\t", lua_tolstring(L, i + 1, 0));
     }
     printf("\n");
     return 0;
 }
 
 inline int xpcall_errhandler(lua_State* L) {
-    luaL_traceback(L, L, lua_tostring(L, 1), 0);
-    printf("%s\n", lua_tostring(L, -1));
-    lua_pop(L, 1);
+    // luaL_traceback(L, L, lua_tostring(L, 1), 0);
+    printf("an error occured: %s\n", lua_tostring(L, 1));
+    // lua_pop(L, 1);
     return 0;
 }
 
@@ -81,12 +81,12 @@ Engine::Engine() {
     lua_setglobal(L, "print");
 
     lua_pushcfunction(L, luaopen_moonscript);
-    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    if (lua_pcall(L, 0, 0, 0) != 0)
         throw std::runtime_error(lua_tostring(L, -1));
 
     lua_getglobal(L, "require");
     lua_pushstring(L, "moonscript.base");
-    if (lua_pcall(L, 1, 1, 0) != LUA_OK)
+    if (lua_pcall(L, 1, 1, 0) != 0)
         throw std::runtime_error(lua_tostring(L, -1));
 
     lua_getfield(L, -1, "to_lua");
@@ -95,7 +95,7 @@ Engine::Engine() {
 
     lua_getglobal(L, "require");
     lua_pushstring(L, "moonscript.parse");
-    if (lua_pcall(L, 1, 1, 0) != LUA_OK)
+    if (lua_pcall(L, 1, 1, 0) != 0)
         throw std::runtime_error(lua_tostring(L, -1));
 
     lua_getfield(L, -1, "string");
@@ -104,7 +104,7 @@ Engine::Engine() {
 
     lua_getglobal(L, "require");
     lua_pushstring(L, "moonscript.compile");
-    if (lua_pcall(L, 1, 1, 0) != LUA_OK)
+    if (lua_pcall(L, 1, 1, 0) != 0)
         throw std::runtime_error(lua_tostring(L, -1));
 
     lua_getfield(L, -1, "tree");
@@ -135,10 +135,10 @@ std::pair<int, int> Engine::OffsetToLine(std::string_view str, int pos) {
 void Engine::RunLua(const char* luaCode) {
     auto L = m_State.get();
     lua_pushcfunction(L, xpcall_errhandler);
-    if (luaL_loadstring(L, luaCode) != LUA_OK)
+    if (luaL_loadstring(L, luaCode) != 0)
         throw std::runtime_error(lua_tostring(L, -1));
 
-    if (lua_pcall(L, 0, 0, -2) != LUA_OK) lua_pop(L, 1);
+    if (lua_pcall(L, 0, 0, -2) != 0) lua_pop(L, 1);
 
     lua_pop(L, 1);
 }
@@ -152,7 +152,7 @@ bool MoonEngine::Engine::CompileStringEx(const char* moonCode, size_t len,
 
     lua_rawgeti(L, LUA_REGISTRYINDEX, m_ToLuaRef);
     lua_pushlstring(L, moonCode, len);
-    if (lua_pcall(L, 1, 2, 0) != LUA_OK) {
+    if (lua_pcall(L, 1, 2, 0) != 0) {
         // Error while calling function
         // Ideally shouldn't happen
         result = lua_tolstring(L, -1, &resultLen);
@@ -198,15 +198,15 @@ CompileInfo Engine::CompileString2(std::string_view moonCode, const CompileOptio
     CompileInfo info;
 
     // Preparing
-    lua_gc(L, LUA_GCSTOP); // We don't need GC to slowdown transpilation
-    std::shared_ptr<void> _(nullptr, [L](...) { lua_gc(L, LUA_GCRESTART); });
+    lua_gc(L, LUA_GCSTOP, 0); // We don't need GC to slowdown transpilation
+    std::shared_ptr<void> _(nullptr, [L](...) { lua_gc(L, LUA_GCRESTART, 0); });
     info.memory_usage = lua_gc_count(L);
 
     // Parsing
     info.parse_time = timestamp();
     lua_rawgeti(L, LUA_REGISTRYINDEX, m_ParseStringRef);
     lua_pushlstring(L, moonCode.data(), moonCode.size());
-    if (lua_pcall(L, 1, 2, 0) != LUA_OK) {
+    if (lua_pcall(L, 1, 2, 0) != 0) {
         std::string err = lua_tostring(L, -1); lua_pop(L, 1);
         return CompileInfo::FromError(err, "failed to run parser.string: " + err);
     }
@@ -222,7 +222,7 @@ CompileInfo Engine::CompileString2(std::string_view moonCode, const CompileOptio
     lua_rawgeti(L, LUA_REGISTRYINDEX, m_CompileTreeRef);
     lua_insert(L, -2);
     push_moon_options(L, options);
-    if (lua_pcall(L, 2, 3, 0) != LUA_OK) {
+    if (lua_pcall(L, 2, 3, 0) != 0) {
         std::string err = lua_tostring(L, -1); lua_pop(L, 1);
         return CompileInfo::FromError(err, "failed to run compile.tree: " + err);
     }
@@ -235,7 +235,7 @@ CompileInfo Engine::CompileString2(std::string_view moonCode, const CompileOptio
         lua_rawgeti(L, LUA_REGISTRYINDEX, m_CompileFormatErrorRef);
         lua_insert(L, -3);
         lua_pushlstring(L, moonCode.data(), moonCode.size());
-        if (lua_pcall(L, 3, 1, 0) == LUA_OK) { display_msg = lua_tostring(L, -1); }
+        if (lua_pcall(L, 3, 1, 0) == 0) { display_msg = lua_tostring(L, -1); }
         lua_pop(L, 2);
         return CompileInfo::FromError(msg, display_msg, pos);
     }

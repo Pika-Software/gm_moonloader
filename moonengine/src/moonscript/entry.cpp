@@ -28,9 +28,10 @@ public:
 void preload_file(lua_State* L, std::string filePath) {
     auto fs = cmrc::MoonEngine::get_filesystem();
 
-    lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "preload");
     auto file = fs.open(filePath);
-    if (luaL_loadstring(L, file.begin()) != LUA_OK) {
+    if (luaL_loadstring(L, file.begin()) != 0) {
         throw PreloadFileException(filePath, lua_tostring(L, -1));
     }
 
@@ -39,7 +40,7 @@ void preload_file(lua_State* L, std::string filePath) {
     std::replace(filePath.begin(), filePath.end(), '/', '.'); // Replace '/' to '.'
 
     lua_setfield(L, -2, filePath.c_str()); // Set our compiled string to preload table
-    lua_pop(L, 1); // Pop preload table
+    lua_pop(L, 2); // Pop preload table
 }
 
 void preload_folder(lua_State* L, std::string dir) {
@@ -54,10 +55,11 @@ void preload_folder(lua_State* L, std::string dir) {
 }
 
 int luaopen_moonscript(lua_State* L) {
-    lua_getfield(L, LUA_REGISTRYINDEX, LUA_PRELOAD_TABLE);
+    lua_getglobal(L, "package");
+    lua_getfield(L, -1, "preload");
     lua_pushcfunction(L, luaopen_lpeg);
     lua_setfield(L, -2, "lpeg");
-    lua_pop(L, 1); // Pop preload table
+    lua_pop(L, 2); // Pop preload table
 
     try {
         preload_folder(L, "moonscript");

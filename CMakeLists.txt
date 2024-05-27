@@ -33,7 +33,7 @@ add_subdirectory(cmake)
 add_subdirectory(third-party/efsw)
 
 # Include embedded lua
-add_subdirectory(third-party/lua)
+# add_subdirectory(third-party/lua)
 add_subdirectory(third-party/lpeg)
 
 # Add moonengine library
