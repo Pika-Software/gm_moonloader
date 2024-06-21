@@ -100,9 +100,11 @@ public:
 
             // Compiler will trigger file gmod autoreload, so we just skip moonloader autoreload
             if (strcmp(runReason, "!MOONRELOAD") == 0) {
-#if SYSTEM_IS_MACOSX
+#if !SYSTEM_IS_WINDOWS 
                 // Since file won't be updated, we need to manually trigger autorefresh
                 // Thank god Rubat made this command for us <3
+                //
+                // It also appears that Linux autorefresh is broken for moonloader
                 std::string cmd = "lua_refresh_file " + path;
                 Utils::SetFileExtension(cmd, "lua");
                 core->engine_server->GMOD_RawServerCommand(cmd.c_str());
