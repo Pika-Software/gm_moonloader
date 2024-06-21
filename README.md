@@ -1,7 +1,7 @@
 # gm_moonloader
-Integrate moonscript into your Garry's Mod!
+Integrate **[Moonscript][1]/[Yuescript][2]** into your Garry's Mod!
 
-This binary module seamlessly integrates [moonscript](https://moonscript.org/) into Garry's Mod, by adding include of plain `.moon` files and support for auto-reload.
+This binary module seamlessly integrates [Moonscript][1] and [Yuescript][2] into Garry's Mod, by adding include of plain `.moon`/`.yue` files and support for auto-reload.
 
 Just add `require "moonloader"` line into your autorun!
 
@@ -44,13 +44,29 @@ print "Hello from Moonscript! ##{i}" for i = 1, 5
 
 ## API
 ```lua
+---- Constants ----
+moonloader._NAME = "gm_moonloader"
+moonloader._AUTHORS = "Pika-Software"
+moonloader._VERSION = "<current version, e.g. 1.2.3-main.2150cd6>"
+moonloader._VERSION_MAJOR = 1
+moonloader._VERSION_MINOR = 2
+moonloader._VERSION_PATCH = 3
+moonloader._BRANCH = "main"
+moonloader._COMMIT = "2150cd6"
+moonloader._URL = "https://github.com/Pika-Software/gm_moonloader"
+
 ---- Functions ----
 -- Compiles given moonscript code into lua code
 -- and returns lua_code with compiled line and char offset from moonCode
 -- If fails, returns nil and error reason
 -- Same as moonscript.to_lua (https://moonscript.org/reference/api.html)
-lua_code: string/nil, line_tabel: table/string
-= moonloader.ToLua(moonCode: string)
+luaCode: string/nil, lineTable: table/string
+    = moonloader.ToLua(moonCode: string)
+
+-- Compiles given yuescript code into lua code
+-- See https://yuescript.org/doc/#lua-module
+luaCode: string/nil, err: string/nil, globals: table/nil
+    = moonloader.yue.ToLua(yueCode: string, options: table/nil)
 
 -- Recursively compiles and caches all .moon files in given lua directory
 -- Use this to add compiled .lua files into Source filesystem
@@ -60,11 +76,6 @@ moonloader.PreCacheDir(path: string)
 -- Tries to compile given file in lua directory
 -- and return true if successful, otherwise false
 success: bool = moonloader.PreCacheFile(path: string)
-
----- Hooks ----
--- Executes when .moon file was compiled
--- Path is relative to lua directory
-GM:MoonFileCompiled(path: string)
 ```
 
 ## Compilation
@@ -110,3 +121,6 @@ Feel free to create issues or pull requests! ❤️
 
 ## Licenese
 [MIT License](/LICENSE)
+
+[1]: <https://github.com/leafo/moonscript> "Moonscript"
+[2]: <https://github.com/pigpigyyy/Yuescript> "Yuescript"
