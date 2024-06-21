@@ -81,39 +81,39 @@ success: bool = moonloader.PreCacheFile(path: string)
 ## Compilation
 1. Clone this repo with submodules
 ```bash
-$ git clone https://github.com/Pika-Software/gm_moonloader --recursive
+git clone https://github.com/Pika-Software/gm_moonloader --recursive
 ```
 
 2. Clone my [garrysmod_common](https://github.com/dankmolot/garrysmod_common) 
 repo with branch `master-cmake` or `x86-64-cmake`
 ```bash
-$ git clone https://github.com/dankmolot/garrysmod_common --branch=master-cmake --recursive
+git clone https://github.com/dankmolot/garrysmod_common --branch=master-cmake --recursive
 ```
 
 3. Configure cmake project
 ```bash
-$ cd gm_moonloader
-$ mkdir -p build && cd build
-$ cmake .. -DGARRYSMOD_COMMON_PATH="../../garrysmod_common" -DBUILD_SHARED_LIBS=OFF
+cd gm_moonloader
+mkdir -p build && cd build
+cmake .. -DGARRYSMOD_COMMON_PATH="../../garrysmod_common" -DBUILD_SHARED_LIBS=OFF
 # Optionally also use -DAUTOINSTALL=<path to garrysmod/lua/bin>
 ```
 
 4. Build it!
 ```
-$ cmake --build . -j -t gm_moonloader --config Release
+cmake --build . -j -t moonloader --config Release
 ```
 
 5. (Optional) Configure project to build 32bit library
 ```bash
 # On Windows
-$ cmake -A Win32 .. # and other options...
+cmake -A Win32 .. # and other options...
 # On Linux
-$ cmake .. -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" # and other options...
+cmake .. -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" # and other options...
 ```
 
 6. (Optional) Configure client-side library
 ```bash
-$ cmake .. -DCLIENT_DLL=ON
+cmake .. -DCLIENT_DLL=ON
 ```
 
 ## Contributing
