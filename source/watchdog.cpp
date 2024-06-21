@@ -87,7 +87,6 @@ void Watchdog::Think() {
         // Check if modified file is delayed
         if (timestamp == m_ModifiedFileDelays.end() || (timestamp->second) < currentTimestamp) {
             DevMsg("[Moonloader] %s was updated. Triggering auto-reload...\n", path.c_str());
-            Msg("Watchdog: %s was updated.\n", path.c_str());
 
             // Moonloader should automatically recompile script, if needed
             // And then run it

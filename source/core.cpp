@@ -94,7 +94,6 @@ public:
         std::string path = fileName;
         bool is_moonscript = core->FindMoonScript(path);
         if (is_moonscript) {
-            This()->MsgColour(This()->IsServer() ? Color{128,128,255,255} : Color{255, 255, 128, 255}, "%s [%s] %s %s %s\n", fileName, runReason, run ? "run" : "find", showErrors ? "withErrors" : "silent", noReturns ? "noReturns" : "withReturns");
             // Alrighty, everything safe and we can with no worries compile! Yay!
             if (!core->compiler->CompileFile(path))
                 return false;
@@ -108,7 +107,6 @@ public:
                 // It also appears that Linux autorefresh is broken for moonloader
                 std::string cmd = "lua_refresh_file " + path;
                 Utils::SetFileExtension(cmd, "lua");
-                Msg("Launching autorefresh command: %s\n", cmd.c_str());
                 core->engine_server->GMOD_RawServerCommand(cmd.c_str());
 #endif
                 return false;
