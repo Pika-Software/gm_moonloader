@@ -20,31 +20,34 @@ extern "C" {
 #include "lua.h"
 #include "lualib.h"
 int luaopen_yue(lua_State* L);
+int luaopen_bit32(lua_State* L);
+LUALIB_API void luaL_requiref (lua_State *L, const char *modname,
+                               lua_CFunction openf, int glb);
 } // extern "C"
 
-static const luaL_Reg lualibs[] = {
-    {"", luaopen_base},
+inline const luaL_Reg loadedlibs[] = {
+    {"_G", luaopen_base},
     {LUA_LOADLIBNAME, luaopen_package},
+    //   {LUA_COLIBNAME, luaopen_coroutine},
     {LUA_TABLIBNAME, luaopen_table},
     //   {LUA_IOLIBNAME, luaopen_io},
     //   {LUA_OSLIBNAME, luaopen_os},
     {LUA_STRLIBNAME, luaopen_string},
+    {"bit", luaopen_bit32},
     {LUA_MATHLIBNAME, luaopen_math},
     {LUA_DBLIBNAME, luaopen_debug},
+    {"yue", luaopen_yue},
     {NULL, NULL}
 };
 
 void yue_openlibs(void* state) {
     lua_State* L = static_cast<lua_State*>(state);
-    const luaL_Reg *lib = lualibs;
-    for (; lib->func; lib++) {
-        lua_pushcfunction(L, lib->func);
-        lua_pushstring(L, lib->name);
-        lua_call(L, 1, 0);
+    const luaL_Reg *lib;
+    /* call open functions from 'loadedlibs' and set results to global table */
+    for (lib = loadedlibs; lib->func; lib++) {
+        luaL_requiref(L, lib->name, lib->func, 1);
+        lua_pop(L, 1);  /* remove lib */
     }
-	lua_pushcfunction(L, luaopen_yue);
-	lua_call(L, 0, 0);
-	lua_pop(L, 1);
 }
 
 using namespace MoonLoader;

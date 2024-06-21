@@ -8,5 +8,5 @@
 	path = third-party/Yuescript
 	url = https://github.com/pigpigyyy/Yuescript.git
 [submodule "third-party/lua5.1"]
-	path = third-party/lua5.1
+	path = third-party/lua5.2
 	url = https://github.com/lua/lua.git
