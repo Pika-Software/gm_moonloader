@@ -38,6 +38,7 @@ bool Compiler::NeedsCompile(const std::string& path) {
 }
 
 bool Compiler::CompileFile(const std::string& path, bool force) {
+    Msg("CompileFile: '%s' force=%d NeedsCompile=%d\n", path.c_str(), force, NeedsCompile(path));
     if (!force && !NeedsCompile(path)) return true;
 
     auto code = fs->ReadTextFile(path, core->LUA->GetPathID());
@@ -49,6 +50,7 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
     std::string lua_code;
     compiled_file.source_path = path;
     if (Utils::FileExtension(path) == "yue") {
+        Msg("Trying to compile yue script\n");
         // Yeah.. for every compilation we need to recraete yuecompiler
         // You might ask why? Because Yuecompiler does not
         // clear its internal state after compilation
@@ -63,6 +65,7 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
         compiled_file.type = CompiledFile::Yuescript;
         lua_code = std::move(info.codes);
     } else {
+        Msg("Trying to compile moon script\n");
         auto info = moonengine->CompileString2(code);
         if (info.error) {
             Warning("[Moonloader] Moonscript compilation of '%s' failed:\n%s\n", path.c_str(), info.error->display_msg.c_str());
@@ -78,11 +81,13 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
     fs->StripFileName(dir);
     fs->CreateDirs(dir, "MOONLOADER");
 
+    Msg("Trying to write compiled code... len=%d\n", lua_code.size());
     compiled_file.output_path = path;
     fs->SetFileExtension(compiled_file.output_path, "lua");
     if (!fs->WriteToFile(compiled_file.output_path, "MOONLOADER", lua_code.c_str(), lua_code.size()))
         return false;
 
+    Msg("Compiled file '%s' to '%s'\n", path.c_str(), compiled_file.output_path.c_str());
     compiled_file.full_source_path = fs->TransverseRelativePath(compiled_file.source_path, core->LUA->GetPathID(), "garrysmod");
     compiled_file.full_output_path = fs->TransverseRelativePath(compiled_file.output_path, "MOONLOADER", "garrysmod");
     compiled_file.update_date = fs->GetFileTime(path, core->LUA->GetPathID());
