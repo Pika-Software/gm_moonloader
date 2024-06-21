@@ -198,6 +198,8 @@ void LuaAPI::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     LUA->PushNumber(MOONLOADER_VERSION_MAJOR); LUA->SetField(-2, "_VERSION_MAJOR");
     LUA->PushNumber(MOONLOADER_VERSION_MINOR); LUA->SetField(-2, "_VERSION_MINOR");
     LUA->PushNumber(MOONLOADER_VERSION_PATCH); LUA->SetField(-2, "_VERSION_PATCH");
+    LUA->PushString(MOONLOADER_GIT_BRANCH); LUA->SetField(-2, "_BRANCH");
+    LUA->PushString(MOONLOADER_GIT_HASH); LUA->SetField(-2, "_COMMIT");
     LUA->PushString(MOONLOADER_URL); LUA->SetField(-2, "_URL");
 
     LUA->PushCFunction(Functions::ToLua); LUA->SetField(-2, "ToLua");
