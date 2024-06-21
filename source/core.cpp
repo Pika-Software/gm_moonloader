@@ -20,8 +20,8 @@ using namespace MoonLoader;
 #include <tier1/convar.h>
 #include <GarrysMod/Lua/LuaShared.h>
 
-#if SYSTEM_IS_MACOSX
-#include <eiface.h>
+#if !SYSTEM_IS_WINDOWS
+#include <eiface.h> // Needed for IVEngineServer
 #endif
 
 extern "C" {
@@ -214,7 +214,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>(LUA);
 
-#if SYSTEM_IS_MACOSX
+#if !SYSTEM_IS_WINDOWS
     engine_server = InterfacePointers::VEngineServer();
     if (engine_server == nullptr) throw std::runtime_error("failed to get IVEngineServer interface");
 #endif
