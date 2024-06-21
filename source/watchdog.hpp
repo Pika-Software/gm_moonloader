@@ -13,16 +13,23 @@
 #include <GarrysMod/Lua/LuaInterface.h>
 
 namespace MoonLoader {
+    class Watchdog;
+    class Filesystem;
+    class Core;
+
     class WatchdogListener : public efsw::FileWatchListener {
     public:
+        std::weak_ptr<Watchdog> watchdog;
         void handleFileAction(efsw::WatchID watchid, const std::string& dir,
             const std::string& filename, efsw::Action action,
             std::string oldFilename) override;
     };
 
-    class Watchdog {
-        std::unique_ptr<efsw::FileWatcher> m_Watcher;
-        std::unique_ptr<WatchdogListener> m_WatchdogListener;
+    class Watchdog : public std::enable_shared_from_this<Watchdog> {
+        std::shared_ptr<Core> core;
+        std::shared_ptr<Filesystem> fs;
+        std::unique_ptr<efsw::FileWatcher> m_Watcher = std::make_unique<efsw::FileWatcher>();
+        std::unique_ptr<WatchdogListener> m_WatchdogListener = std::make_unique<WatchdogListener>();;
         std::unordered_map<std::string, efsw::WatchID> m_WatchIDs;
         std::unordered_set<std::string> m_WatchedFiles;
 
@@ -31,7 +38,8 @@ namespace MoonLoader {
         std::unordered_map<std::string, uint64> m_ModifiedFileDelays;
 
     public:
-        Watchdog();
+        Watchdog(std::shared_ptr<Core>, std::shared_ptr<Filesystem> fs);
+        void Start();
 
         inline bool IsFileWatched(const std::string& path) { return m_WatchedFiles.find(path) != m_WatchedFiles.end(); }
         inline bool IsDirectoryWatched(const std::string& path) { return m_WatchIDs.find(path) != m_WatchIDs.end(); }
@@ -41,7 +49,7 @@ namespace MoonLoader {
         // Directory path must be absolute
         void WatchDirectory(const std::string& path);
         void WatchFile(const std::string& path, const char* pathID);
-        void Think(GarrysMod::Lua::ILuaInterface* LUA);
+        void Think();
     };
 }
 

@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
+enable_language(CXX C)
 
 # Require C++ 17
 set(CMAKE_CXX_STANDARD 17)
@@ -20,9 +21,9 @@ if(APPLE)
     )
 endif()
 
-# Enable multithreaded compilation on Windows
+# Debug build is unsupported on MSVC
 if(MSVC)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" "/MP")
+    list(REMOVE_ITEM CMAKE_CONFIGURATION_TYPES "Debug")
 endif()
 
 # Include extensions
@@ -32,7 +33,7 @@ add_subdirectory(cmake)
 add_subdirectory(third-party/efsw)
 
 # Include embedded lua
-add_subdirectory(third-party/lua)
+# add_subdirectory(third-party/lua)
 add_subdirectory(third-party/lpeg)
 
 # Add moonengine library
@@ -62,8 +63,9 @@ if(NOT DEFINED GIT_BRANCH)
     )
 endif()
 
+file(STRINGS "VERSION" GM_MOONLOADER_VERSION)
 project(gm_moonloader 
-    VERSION 1.3.0
+    VERSION ${GM_MOONLOADER_VERSION}
     LANGUAGES CXX 
     HOMEPAGE_URL "https://github.com/Pika-Software/gm_moonloader"
 )

@@ -1,9 +1,12 @@
-[submodule "third-party/lua"]
-	path = third-party/lua
-	url = https://github.com/lubgr/lua-cmake
 [submodule "third-party/moonscript"]
 	path = third-party/moonscript
 	url = https://github.com/leafo/moonscript.git
 [submodule "third-party/efsw"]
 	path = third-party/efsw
 	url = https://github.com/SpartanJ/efsw.git
+[submodule "third-party/Yuescript"]
+	path = third-party/Yuescript
+	url = https://github.com/pigpigyyy/Yuescript.git
+[submodule "third-party/lua5.1"]
+	path = third-party/lua5.2
+	url = https://github.com/lua/lua.git

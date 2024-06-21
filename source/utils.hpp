@@ -10,6 +10,8 @@
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <chrono>
 #include <optional>
+#include <memory>
+#include <unordered_map>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
@@ -25,6 +27,9 @@ namespace MoonLoader::Utils {
     }
     inline bool EndsWith(std::string_view str, std::string_view suffix) {
         return str.size() >= suffix.size() && 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+    }
+    inline void RightTrim(std::string &s) {
+        s.erase(std::find_if_not(s.rbegin(), s.rend(), ::isspace).base(), s.end());
     }
     inline void LowerCase(std::string& path) {
         std::transform(path.begin(), path.end(), path.begin(), ::tolower);
@@ -69,6 +74,23 @@ namespace MoonLoader::Utils {
             return std::string(path) + std::string(subPath);
         return std::string(path) + '/' + std::string(subPath);
     }
+    inline std::string JoinPaths(std::initializer_list<std::string_view> paths) {
+        std::string result = {};
+        for (auto& path : paths) {
+            if (result.empty() || result.back() == '/' || result.back() == '\\') {
+                result.append(path);
+            } else if (path.empty()) {
+                continue;
+            } else {
+                result.push_back('/');
+                result.append(path);
+            }
+        }
+        return result;
+    }
+    template <typename... Paths> inline std::string JoinPaths(Paths... paths) {
+        return JoinPaths({std::forward<Paths>(paths)...});
+    }
     // dir/file.ext -> dir/file
     inline void StripFileExtension(std::string& path) {
         auto namePos = path.find_last_of('.');
@@ -87,6 +109,17 @@ namespace MoonLoader::Utils {
     inline void RemovePrefix(std::string& str, std::string_view prefix) {
         if (StartsWith(str, prefix))
             str.erase(0, prefix.size());
+    }
+
+    template <char DELIMITER = '\n', class Func>
+    inline void Split(std::string_view str, Func f) {
+        std::string_view::size_type last = 0, next = 0, line = 1;
+        while ((next = str.find(DELIMITER, last)) != std::string_view::npos) {
+            f(str.substr(last, next - last), line);
+            last = next + 1;
+            line++;
+        }
+        f(str.substr(last), line);
     }
 
     // ---------------------------
@@ -145,11 +178,27 @@ namespace MoonLoader::Utils {
         LUA->Pop();
         return std::nullopt;
     }
+    inline std::string_view GetString(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        unsigned int len = 0;
+        const char* str = LUA->GetString(index, &len);
+        return std::string_view(str, len);
+    }
+    inline std::string_view CheckString(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        LUA->CheckType(index, GarrysMod::Lua::Type::String);
+        return GetString(LUA, index);
+    }
+    inline void PushString(GarrysMod::Lua::ILuaBase* LUA, std::string_view str) {
+        LUA->PushString(str.data(), str.size());
+    }
+    inline std::optional<double> OptNumber(GarrysMod::Lua::ILuaBase* LUA, int index) {
+        return LUA->IsType(index, GarrysMod::Lua::Type::Number) ? 
+            std::optional(LUA->GetNumber(index)) : 
+            std::nullopt;
+    }
     inline bool DeveloperEnabled(GarrysMod::Lua::ILuaBase* LUA) {
         LUA->PushString("developer");
         return LuaBoolFromValue(LUA, "cvars.Bool", 1).value_or(false);
     }
-    bool FindMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string& path);
 
     // ---------------------------
     // - Other                   -
@@ -157,6 +206,25 @@ namespace MoonLoader::Utils {
     inline uint64_t Timestamp() {
         // Oh, yesss! I love one-liners!
         return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock().now().time_since_epoch()).count();
+    }
+    // https://stackoverflow.com/a/2342176/11635796
+    template<typename ... Args>
+    std::string Format(const std::string& format, Args ... args) {
+        int size_s = std::snprintf(nullptr, 0, format.c_str(), args ...) + 1; // Extra space for '\0'
+        if (size_s <= 0) { throw std::runtime_error("Error during formatting."); }
+        auto size = static_cast<size_t>(size_s);
+        std::unique_ptr<char[]> buf(new char[size]);
+        std::snprintf(buf.get(), size, format.c_str(), args ...);
+        return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+    }
+
+    inline std::optional<int> FindClosestLine(const std::unordered_map<int, int>& lines, int line) {
+        int closest = -1;
+        for (auto& [key, value] : lines) {
+            if (key > line) break;
+            closest = value;
+        }
+        return closest >= 0 ? std::optional(closest) : std::nullopt;
     }
 
 #if IS_SERVERSIDE

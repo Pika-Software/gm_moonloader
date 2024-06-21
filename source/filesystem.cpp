@@ -5,12 +5,10 @@
 #include <filesystem.h>
 #include <algorithm>
 
-constexpr size_t PATH_BUFFER_SIZE = MAX_UNICODE_PATH;
-
 namespace MoonLoader {
     // ---------------------------- Filesystem ----------------------------
     Filesystem::Filesystem(IFileSystem* fs) {
-        Assert(fs != nullptr);
+        if (fs == nullptr) throw std::runtime_error("IFileSystem is null");
         m_InternalFS = fs;
     }
 
@@ -18,11 +16,11 @@ namespace MoonLoader {
         // I hate allocating big buffers on stack, but I don't want to use heap
         // So here is a thread_local static buffer
         // I pray that it is not allocated on stack
-        thread_local static char pathBuffer[PATH_BUFFER_SIZE];
-        return pathBuffer;
+        thread_local static std::vector<char> pathBuffer(PathBufferSize());
+        return pathBuffer.data();
     }
     size_t Filesystem::PathBufferSize() {
-        return PATH_BUFFER_SIZE;
+        return 8192;
     }
 
     // --- Path manipulation ---
@@ -149,20 +147,16 @@ namespace MoonLoader {
         return result;
     }
     std::string Filesystem::ReadTextFile(const std::string& path, const char* pathID) {
-        // Yeah, this is the same as ReadBinaryFile
-        // but also copies data to string
-        // I don't know how to return std::string without copying data
         std::lock_guard<std::mutex> lock(m_IOLock);
-        std::vector<char> result = {};
-        FileHandle_t fh = m_InternalFS->Open(path.c_str(), "r", pathID);
+        FileHandle_t fh = m_InternalFS->Open(path.c_str(), "rb", pathID);
         if (fh) {
-            int fileSize = m_InternalFS->Size(fh);
-            result.resize(fileSize);
+            std::string result(m_InternalFS->Size(fh), '\0');
 
-            m_InternalFS->Read(result.data(), result.size(), fh);
+            m_InternalFS->Read(&result[0], result.size(), fh);
             m_InternalFS->Close(fh);
+            return result;
         }
-        return { result.data(), result.size() };
+        return {};
     }
     bool Filesystem::WriteToFile(const std::string& path, const char* pathID, const void* data, size_t len) {
         std::lock_guard<std::mutex> lock(m_IOLock);

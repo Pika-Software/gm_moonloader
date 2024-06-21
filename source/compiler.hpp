@@ -8,40 +8,65 @@
 #include <string>
 #include <string_view>
 #include <optional>
+#include <memory>
 #include <GarrysMod/Lua/LuaInterface.h>
 
+namespace MoonEngine {
+    class Engine;
+}
+
 namespace MoonLoader {
+    class Filesystem;
+    class Watchdog;
+    class Core;
+
     class Compiler {
     public:
-        struct MoonDebug {
-            // Compiled line -> original line
-            std::unordered_map<size_t, size_t> lines;
+        struct CompiledFile {
+            enum Type {
+                Moonscript,
+                Yuescript
+            };
 
-            std::string sourcePath;
-            std::string fullSourcePath;
-            std::string compiledPath;
-            std::string fullCompiledPath;
+            std::string source_path;
+            std::string full_source_path;
+            std::string output_path;
+            std::string full_output_path;
+            size_t update_date = 0;
+            Type type;
 
-            size_t lastFileModification;
+            std::unordered_map<int, int> line_map;
         };
 
     private:
-        std::unordered_map<std::string, MoonDebug> m_CompiledFiles;
+        std::shared_ptr<Core> core;
+        std::shared_ptr<Filesystem> fs;
+        std::shared_ptr<MoonEngine::Engine> moonengine;
+        std::shared_ptr<Watchdog> watchdog;
+        std::unordered_map<std::string, CompiledFile> compiled_files;
 
     public:
-        // Gets debug info for compiled .moon file (in LUA directory)
-        inline std::optional<MoonDebug> GetDebugInfo(const std::string& path) {
-            auto it = m_CompiledFiles.find(path);
-            return it != m_CompiledFiles.end() ? std::optional(it->second) : std::nullopt;
+        Compiler(std::shared_ptr<Core> core,
+                 std::shared_ptr<Filesystem> fs,
+                 std::shared_ptr<MoonEngine::Engine> moonengine, 
+                 std::shared_ptr<Watchdog> watchdog)
+            : core(core), fs(fs), moonengine(moonengine), watchdog(watchdog) {}
+
+        bool NeedsCompile(const std::string& path);
+        const CompiledFile* FindFileByFullSourcePath(const std::string& full_source_path) const {
+            for (const auto& [path, info] : compiled_files)
+                if (info.full_source_path == full_source_path)
+                    return &info;
+            return nullptr;
         }
-        // Checks if .moon file is compiled (in LUA directory)
-        inline bool IsCompiled(const std::string& path) {
-            return m_CompiledFiles.find(path) != m_CompiledFiles.end();
+        const CompiledFile* FindFileByFullOutputPath(std::string_view full_output_path) const {
+            for (const auto& [path, info] : compiled_files)
+                if (info.full_output_path == full_output_path)
+                    return &info;
+            return nullptr;
         }
 
-        bool WasModified(GarrysMod::Lua::ILuaInterface* LUA, const std::string& path);
-
-        bool CompileMoonScript(GarrysMod::Lua::ILuaInterface* LUA, std::string path, bool force = false);
+        bool CompileFile(const std::string& path, bool force = false);
     };
 }
 

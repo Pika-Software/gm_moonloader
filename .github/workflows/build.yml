@@ -16,191 +16,72 @@ on:
 
 env:
   GIT_BRANCH: ${{ github.ref_type == 'branch' && github.ref_name || 'release' }}
-  BUILD_TYPE: ${{ (github.ref_type != 'branch' || github.ref_name == 'main') && 'Release' || 'Debug' }}
+  BUILD_TYPE: ${{ (github.ref_type != 'branch' || github.ref_name == 'main') && 'Release' || 'RelWithDebInfo' }}
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-20.04]
+        arch: [x64, x86]
+        include:
+          - os: windows-latest
+            arch: x64
+            CMAKE_ARCH_FLAG: -A x64
+          - os: windows-latest
+            arch: x86
+            CMAKE_ARCH_FLAG: -A Win32
+          - os: ubuntu-20.04
+            arch: x86
+            CMAKE_ARCH_FLAG: -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32"
+          - os: macos-latest
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - name: '[x32] Download garrysmod_common'
-        uses: actions/checkout@v3
-        with:
-          repository: 'dankmolot/garrysmod_common'
-          ref: 'master-cmake'
-          submodules: 'recursive'
-          path: 'third-party/garrysmod_common'
-
-      - name: '[x32] Configure project (Serverside)'
+      - name: Install dependencies Ubuntu x86
+        if: ${{ matrix.os == 'ubuntu-20.04' && matrix.arch == 'x86' }}
         run: |
-          cmake -B build -S . -A Win32 `
-            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" `
-            -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DGIT_BRANCH="$env:GIT_BRANCH"
-
-      - name: '[x32] Build project (Serverside)'
-        run: cmake --build build --config $env:BUILD_TYPE -j -t moonloader
-
-      - name: '[x32] Configure project (Clientside)'
-        run: cmake -B build -S . -DCLIENT_DLL=ON
-
-      - name: '[x32] Build project (Clientside)'
-        run: cmake --build build --config $env:BUILD_TYPE -j -t moonloader
-
-      - name: '[x64] Download garrysmod_common'
-        uses: actions/checkout@v3
-        with:
-          repository: 'dankmolot/garrysmod_common'
-          ref: 'x86-64-cmake'
-          submodules: 'recursive'
-          path: 'third-party/garrysmod_common64'
-
-      - name: '[x64] Configure project (Serverside)'
-        run: |
-          cmake -B build64 -S . -A x64 `
-            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" `
-            -DAUTOINSTALL="." `
-            -DBUILD_SHARED_LIBS=OFF `
-            -DGIT_BRANCH="$env:GIT_BRANCH"
-
-      - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 --config $env:BUILD_TYPE -j -t moonloader
-
-      - name: '[x64] Configure project (Clientside)'
-        run: cmake -B build64 -S . -DCLIENT_DLL=ON
-
-      - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 --config $env:BUILD_TYPE -j -t moonloader
-
-      - name: "Upload artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: Windows
-          path: |
-            ./*.dll
-          if-no-files-found: error
-
-      - name: "Upload debug artifacts"
-        uses: actions/upload-artifact@v3
-        if: ${{ env.BUILD_TYPE == 'Debug' }}
-        with:
-          name: Windows
-          path: |
-            ./*.pdb
-
-  linux:
-    runs-on: ubuntu-20.04 # Using ubuntu 20.04 since we want to use old gcc version to ensure compatibility
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
-
-      - name: Install dependencies
-        run: |
+          sudo apt update
           sudo apt install gcc-multilib g++-multilib
 
-      - name: '[x32] Download garrysmod_common'
-        uses: actions/checkout@v3
+      - name: Download garrysmod_common
+        uses: actions/checkout@v4
         with:
-          repository: 'dankmolot/garrysmod_common'
-          ref: 'master-cmake'
-          submodules: 'recursive'
-          path: 'third-party/garrysmod_common'
+          repository: dankmolot/garrysmod_common
+          ref: ${{ matrix.arch == 'x64' && 'x86-64-cmake' || 'master-cmake' }}
+          submodules: recursive
+          path: third-party/garrysmod_common
 
-      - name: '[x32] Configure project (Serverside)'
-        run: |
-          cmake -B build -S . \
-            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" \
-            -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DCMAKE_C_FLAGS="-m32" -DCMAKE_CXX_FLAGS="-m32" \
-            -DGIT_BRANCH="$GIT_BRANCH" \
-            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+      - name: Configure project
+        run: cmake -B build -S . ${{matrix.CMAKE_ARCH_FLAG}} -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common" -DAUTOINSTALL="." -DBUILD_SHARED_LIBS=OFF -DGIT_BRANCH="${{env.GIT_BRANCH}}" -DCMAKE_BUILD_TYPE="${{env.BUILD_TYPE}}"
 
-      - name: '[x32] Build project (Serverside)'
-        run: cmake --build build -j -t moonloader
+      - name: Build project
+        run: cmake --build build -j -t moonloader --config ${{env.BUILD_TYPE}}
 
-      - name: '[x32] Configure project (Clientside)'
+      - name: Configure project (Clientside)
         run: cmake -B build -S . -DCLIENT_DLL=ON
+      
+      - name: Build project (Clientside)
+        run: cmake --build build -j -t moonloader --config ${{env.BUILD_TYPE}}
 
-      - name: '[x32] Build project (Clientside)'
-        run: cmake --build build -j -t moonloader
-
-      - name: '[x64] Download garrysmod_common'
-        uses: actions/checkout@v3
-        with:
-          repository: 'dankmolot/garrysmod_common'
-          ref: 'x86-64-cmake'
-          submodules: 'recursive'
-          path: 'third-party/garrysmod_common64'
-
-      - name: '[x64] Configure project (Serverside)'
+      - name: Strip debug information from binaries and keep them outside (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-20.04' }}
         run: |
-          cmake -B build64 -S . \
-            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
-            -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DGIT_BRANCH="$GIT_BRANCH" \
-            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-
-      - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 -j -t moonloader
-
-      - name: '[x64] Configure project (Clientside)'
-        run: cmake -B build64 -S . -DCLIENT_DLL=ON
-
-      - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 -j -t moonloader
+          find *.dll -exec objcopy --only-keep-debug {} {}.pdb \;
+          find *.dll -exec objcopy --strip-debug {} \;
+          find *.dll -exec objcopy --add-gnu-debuglink {}.pdb {} \;
 
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: Linux
+          name: ${{matrix.os}}-${{matrix.arch}}-${{env.BUILD_TYPE}}
           path: |
             ./*.dll
-          if-no-files-found: error
-
-  macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
-
-      - name: '[x64] Download garrysmod_common'
-        uses: actions/checkout@v3
-        with:
-          repository: 'dankmolot/garrysmod_common'
-          ref: 'x86-64-cmake'
-          submodules: 'recursive'
-          path: 'third-party/garrysmod_common64'
-
-      - name: '[x64] Configure project (Serverside)'
-        run: |
-          cmake -B build64 -S . \
-            -DGARRYSMOD_COMMON_PATH="third-party/garrysmod_common64" \
-            -DAUTOINSTALL="." \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DGIT_BRANCH="$GIT_BRANCH" \
-            -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
-
-      - name: '[x64] Build project (Serverside)'
-        run: cmake --build build64 -j -t moonloader
-
-      - name: '[x64] Configure project (Clientside)'
-        run: cmake -B build64 -S . -DCLIENT_DLL=ON
-
-      - name: '[x64] Build project (Clientside)'
-        run: cmake --build build64 -j -t moonloader
-
-      - name: "Upload artifacts"
-        uses: actions/upload-artifact@v3
-        with:
-          name: MacOS
-          path: |
-            ./*.dll
+            ./*.pdb
           if-no-files-found: error
