@@ -48,8 +48,9 @@ namespace MoonLoader {
     }
     std::string& Filesystem::StripFileName(std::string& path) {
         auto namePos = path.find_last_of('/');
-        if (namePos != std::string::npos)
-            path.erase(namePos);
+        if (namePos == std::string::npos) // '/' wasn't found, then just clear given path
+            namePos = -1;
+        path.erase(namePos + 1);
         return path;
     }
     std::string& Filesystem::StripFileExtension(std::string& path) {
