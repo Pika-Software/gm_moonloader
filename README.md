@@ -5,6 +5,9 @@ This binary module seamlessly integrates [Moonscript][1] and [Yuescript][2] into
 
 Just add `require "moonloader"` line into your autorun!
 
+> [!WARNING]
+> Currently latest release gm_moonloader doesn't have working Autorefresh for Linux. I am investigating the issue.
+
 ## How to install
 1. Go to [latest release](https://github.com/Pika-Software/gm_moonloader/releases/latest)
 2. Download binary for your OS and Garry's Mod branch. For example `gmsv_moonloader_linux32.dll`
