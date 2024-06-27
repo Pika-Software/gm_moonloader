@@ -3,6 +3,7 @@
 
 #include <tier0/dbg.h>
 #include <filesystem.h>
+#include <filesystem> // std filesystem
 #include <algorithm>
 
 namespace MoonLoader {
@@ -182,6 +183,19 @@ namespace MoonLoader {
     void Filesystem::RemoveSearchPath(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
         m_InternalFS->RemoveSearchPath(path.c_str(), pathID);
+    }
+
+    void Filesystem::CreateDirectorySymlink(const std::string& target, const char* targetPathID, const std::string& link, const char* linkPathID) {
+        std::string fullTarget, fullLink, fileName;
+        fullLink = link;
+        fileName = FileName(link);
+        StripFileName(fullLink);
+
+        fullTarget = RelativeToFullPath(target, targetPathID);
+        fullLink = RelativeToFullPath(fullLink, linkPathID);
+
+        fullLink += fileName;
+        std::filesystem::create_directory_symlink(fullTarget, fullLink);
     }
 
     // ---------------------------- FileFinder ----------------------------
