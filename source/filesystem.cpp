@@ -195,7 +195,12 @@ namespace MoonLoader {
         fullLink = RelativeToFullPath(fullLink, linkPathID);
 
         fullLink += fileName;
-        std::filesystem::create_directory_symlink(fullTarget, fullLink);
+        try {
+            std::filesystem::create_directory_symlink(fullTarget, fullLink);
+        } catch(const std::filesystem::filesystem_error& err) {
+            if (err.code() == std::errc::file_exists) return; // Ignore 'file exists' error
+            throw;
+        }
     }
 
     // ---------------------------- FileFinder ----------------------------
