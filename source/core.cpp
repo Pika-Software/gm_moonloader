@@ -219,7 +219,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     if (engine_server == nullptr) throw std::runtime_error("failed to get IVEngineServer interface");
 #endif
 
-    DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
+    // DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
     fs->CreateDirs(CACHE_PATH_LUA);
     //fs->CreateDirs(CACHE_PATH_GAMEMODES);
     fs->AddSearchPath("garrysmod/" CACHE_PATH, "GAME", true);
@@ -232,6 +232,10 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
         fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
         fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, "lcl", true);
     }
+
+#if SYSTEM_IS_LINUX
+    fs->CreateDirectorySymlink(CACHE_PATH, ADDONS_CACHE_PATH, "garrysmod");
+#endif
 
     cvar = InterfacePointers::Cvar();
     if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
