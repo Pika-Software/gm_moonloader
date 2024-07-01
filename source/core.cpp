@@ -19,10 +19,6 @@ using namespace MoonLoader;
 #include <GarrysMod/Lua/Interface.h>
 #include <tier1/convar.h>
 
-#if !SYSTEM_IS_WINDOWS
-#include <eiface.h> // Needed for IVEngineServer
-#endif
-
 extern "C" {
     #include <lua.h>
 }
@@ -183,6 +179,19 @@ std::vector<std::shared_ptr<Core>> Core::GetAll() {
     return cores;
 }
 
+inline bool IsSingleplayer(GarrysMod::Lua::ILuaInterface* LUA) {
+    LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "game");
+    LUA->GetField(-1, "SinglePlayer");
+    bool singleplayer = false;
+    if (LUA->PCall(0, 1, 0) != 0) {
+        LUA->Pop(); // Remove error message
+        LUA->PushBool(false);
+    }
+    singleplayer = LUA->GetBool(-1);
+    LUA->Pop(2); // Remove bool and game table
+    return singleplayer;
+}
+
 void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     this->LUA = LUA;
 
@@ -207,12 +216,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
     lua_interface_detour = std::make_shared<ILuaInterfaceProxy>(LUA);
 
-#if !SYSTEM_IS_WINDOWS
-    engine_server = InterfacePointers::VEngineServer();
-    if (engine_server == nullptr) throw std::runtime_error("failed to get IVEngineServer interface");
-#endif
-
-    // DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
+    DevMsg("[Moonloader] Removed %d files from cache\n", fs->Remove(CACHE_PATH, "GAME"));
     fs->CreateDirs(CACHE_PATH_LUA);
     //fs->CreateDirs(CACHE_PATH_GAMEMODES);
     fs->AddSearchPath("garrysmod/" CACHE_PATH, "GAME", true);
@@ -221,15 +225,11 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
     fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID(), true);
     //fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, LUA->GetPathID(), true);
-    if (LUA->IsServer()) {
+    if (LUA->IsServer() && IsSingleplayer(LUA)) {
         // Only add these if server is single player
         fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
         fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, "lcl", true);
     }
-
-#if SYSTEM_IS_LINUX
-    fs->CreateDirectorySymlink(CACHE_PATH, ADDONS_CACHE_PATH, "garrysmod");
-#endif
 
     cvar = InterfacePointers::Cvar();
     if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
