@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <stdexcept>
 #include <algorithm>
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <chrono>

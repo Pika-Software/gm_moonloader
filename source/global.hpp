@@ -25,6 +25,7 @@ namespace MoonLoader {
     #define CACHE_PATH "cache/moonloader/"
     #define CACHE_PATH_LUA CACHE_PATH "lua/"
     #define CACHE_PATH_GAMEMODES CACHE_PATH "gamemodes/"
+    #define ADDONS_CACHE_PATH "addons/moonloader_cache"
 }
 
 #endif //MOONLOADER_GLOBAL_HPP

@@ -26,6 +26,11 @@ if(MSVC)
     list(REMOVE_ITEM CMAKE_CONFIGURATION_TYPES "Debug")
 endif()
 
+# Force old ABI for Linux, since Garry's Mod ABI is used
+if(UNIX AND NOT APPLE)
+    add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
+endif()
+
 # Include extensions
 add_subdirectory(cmake)
 

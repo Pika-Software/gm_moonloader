@@ -27,6 +27,7 @@ namespace MoonLoader {
         static size_t PathBufferSize();
 
         // --- Path manipulation ---
+        static std::string& Resolve(std::string& path);
         static std::string& FixSlashes(std::string& path);
         static std::string& LowerCase(std::string& path);
         // Fixes slashes and lowercases the path
@@ -71,6 +72,9 @@ namespace MoonLoader {
 
         void AddSearchPath(const std::string& path, const char* pathID = 0, bool addToFront = false);
         void RemoveSearchPath(const std::string& path, const char* pathID = 0);
+
+        void CreateDirectorySymlink(const std::string& target, const char* targetPathID, const std::string& link, const char* linkPathID);
+        inline void CreateDirectorySymlink(const std::string& target, const std::string& link, const char* pathID = 0) { CreateDirectorySymlink(target, pathID, link, pathID); }
     };
 
     class Filesystem::FileFinder {

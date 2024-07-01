@@ -174,12 +174,12 @@ namespace Functions {
         return 0;
     }
 
-    LUA_FUNCTION(AddCSLuaFile) {
-        if (auto core = Core::Get(LUA)) {
-            core->lua_api->AddCSLuaFile(core->LUA);
-        }
-        return 0;
-    }
+    //LUA_FUNCTION(AddCSLuaFile) {
+    //    if (auto core = Core::Get(LUA)) {
+    //        core->lua_api->AddCSLuaFile(core->LUA);
+    //    }
+    //    return 0;
+    //}
 
     LUA_FUNCTION(DebugGetInfo) {
         if (auto core = Core::Get(LUA)) {
@@ -218,17 +218,17 @@ void LuaAPI::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
 #if IS_SERVERSIDE
     // Detour AddCSLuaFile
-    if (LUA->IsServer()) {
-        if (!AddCSLuaFile_ref) {
-            LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
-            if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) AddCSLuaFile_ref = GarrysMod::Lua::AutoReference(LUA);
-            else LUA->Pop();
-        }
-        if (AddCSLuaFile_ref) {
-            LUA->PushCFunction(Functions::AddCSLuaFile);
-            LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
-        }
-    }
+    //if (LUA->IsServer()) {
+    //    if (!AddCSLuaFile_ref) {
+    //        LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+    //        if (LUA->IsType(-1, GarrysMod::Lua::Type::Function)) AddCSLuaFile_ref = GarrysMod::Lua::AutoReference(LUA);
+    //        else LUA->Pop();
+    //    }
+    //    if (AddCSLuaFile_ref) {
+    //        LUA->PushCFunction(Functions::AddCSLuaFile);
+    //        LUA->SetField(GarrysMod::Lua::INDEX_GLOBAL, "AddCSLuaFile");
+    //    }
+    //}
 
     // Detour debug.getinfo
     LUA->GetField(GarrysMod::Lua::INDEX_GLOBAL, "debug");

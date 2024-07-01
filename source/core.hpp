@@ -11,6 +11,10 @@
 class IVEngineServer;
 class ConVar;
 
+namespace GarrysMod::Lua {
+    class ILuaShared;
+}
+
 namespace Detouring {
     class Hook;
 }
@@ -25,11 +29,13 @@ namespace MoonLoader {
     class Compiler;
     class Watchdog;
     class ILuaInterfaceProxy;
+    class ILuaSharedProxy;
     class Errors;
 
     class Core : public std::enable_shared_from_this<Core> {
     public:
         GarrysMod::Lua::ILuaInterface* LUA = nullptr;
+        GarrysMod::Lua::ILuaShared* lua_shared = nullptr;
         std::shared_ptr<MoonEngine::Engine> moonengine;
         std::shared_ptr<LuaAPI> lua_api;
         std::shared_ptr<Filesystem> fs;
@@ -37,6 +43,7 @@ namespace MoonLoader {
         std::shared_ptr<Watchdog> watchdog;
         std::shared_ptr<Compiler> compiler;
         std::shared_ptr<ILuaInterfaceProxy> lua_interface_detour;
+        std::shared_ptr<ILuaSharedProxy> lua_shared_detour;
         std::shared_ptr<Errors> errors;
 
         static ConVar cvar_detour_getinfo;
@@ -48,6 +55,7 @@ namespace MoonLoader {
 
         // Finds moonscript file relative to LUA search path
         bool FindMoonScript(std::string& path);
+        size_t PrepareDirectory(std::string_view path);
         void PrepareFiles();
 
         void Initialize(GarrysMod::Lua::ILuaInterface* LUA);
