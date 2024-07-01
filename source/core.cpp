@@ -18,7 +18,6 @@ using namespace MoonLoader;
 #include <detouring/hook.hpp>
 #include <GarrysMod/Lua/Interface.h>
 #include <tier1/convar.h>
-#include <GarrysMod/Lua/LuaShared.h>
 
 #if !SYSTEM_IS_WINDOWS
 #include <eiface.h> // Needed for IVEngineServer
@@ -38,6 +37,11 @@ std::vector<ConVar*> moonloader_convars = {
 inline IFileSystem* LoadFilesystem() {
     auto iface = Utils::LoadInterface<IFileSystem>("filesystem_stdio", FILESYSTEM_INTERFACE_VERSION);
     return iface != nullptr ? iface : InterfacePointers::FileSystem();
+}
+
+#define GMOD_LUASHARED_INTERFACE "LUASHARED003"
+inline GarrysMod::Lua::ILuaShared* LoadLuaShared() {
+    return Utils::LoadInterface<GarrysMod::Lua::ILuaShared>("lua_shared", GMOD_LUASHARED_INTERFACE);
 }
 
 class MoonLoader::ILuaInterfaceProxy : public Detouring::ClassProxy<GarrysMod::Lua::ILuaInterface, MoonLoader::ILuaInterfaceProxy> {
@@ -97,20 +101,6 @@ public:
             // Alrighty, everything safe and we can with no worries compile! Yay!
             if (!core->compiler->CompileFile(path))
                 return false;
-
-            // Compiler will trigger file gmod autoreload, so we just skip moonloader autoreload
-            if (strcmp(runReason, "!MOONRELOAD") == 0) {
-#if !SYSTEM_IS_WINDOWS 
-                // Since file won't be updated, we need to manually trigger autorefresh
-                // Thank god Rubat made this command for us <3
-                //
-                // It also appears that Linux autorefresh is broken for moonloader
-                std::string cmd = "lua_refresh_file " + path;
-                Utils::SetFileExtension(cmd, "lua");
-                core->engine_server->GMOD_RawServerCommand(cmd.c_str());
-#endif
-                return false;
-            }
 
             path = fileName; // Preserve original file path for the god's sake
             Utils::SetFileExtension(path, "lua"); // Do not forget to pass lua file to gmod!!
@@ -206,6 +196,9 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     }
 
 #if IS_SERVERSIDE
+    lua_shared = LoadLuaShared();
+    if (lua_shared == nullptr) throw std::runtime_error("failed to get ILuaShared interface");
+
     fs = std::make_shared<Filesystem>(LoadFilesystem());
     watchdog = std::make_shared<Watchdog>(shared_from_this(), fs);
     watchdog->Start();
@@ -229,6 +222,7 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
     fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, LUA->GetPathID(), true);
     //fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, LUA->GetPathID(), true);
     if (LUA->IsServer()) {
+        // Only add these if server is single player
         fs->AddSearchPath("garrysmod/" CACHE_PATH_LUA, "lcl", true);
         fs->AddSearchPath("garrysmod/" CACHE_PATH_GAMEMODES, "lcl", true);
     }

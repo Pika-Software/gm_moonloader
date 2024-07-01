@@ -11,6 +11,10 @@
 class IVEngineServer;
 class ConVar;
 
+namespace GarrysMod::Lua {
+    class ILuaShared;
+}
+
 namespace Detouring {
     class Hook;
 }
@@ -30,6 +34,7 @@ namespace MoonLoader {
     class Core : public std::enable_shared_from_this<Core> {
     public:
         GarrysMod::Lua::ILuaInterface* LUA = nullptr;
+        GarrysMod::Lua::ILuaShared* lua_shared = nullptr;
         std::shared_ptr<MoonEngine::Engine> moonengine;
         std::shared_ptr<LuaAPI> lua_api;
         std::shared_ptr<Filesystem> fs;

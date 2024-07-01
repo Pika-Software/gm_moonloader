@@ -65,6 +65,10 @@ namespace MoonLoader {
                     return &info;
             return nullptr;
         }
+        const CompiledFile* FindFileBySourcePath(const std::string& path) const {
+            auto it = compiled_files.find(path);
+            return it == compiled_files.end() ? nullptr : &it->second;
+        }
 
         bool CompileFile(const std::string& path, bool force = false);
     };

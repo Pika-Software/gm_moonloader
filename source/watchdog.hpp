@@ -12,6 +12,10 @@
 #include <efsw/efsw.hpp>
 #include <GarrysMod/Lua/LuaInterface.h>
 
+namespace Detouring {
+    class Hook;
+}
+
 namespace MoonLoader {
     class Watchdog;
     class Filesystem;
@@ -32,6 +36,7 @@ namespace MoonLoader {
         std::unique_ptr<WatchdogListener> m_WatchdogListener = std::make_unique<WatchdogListener>();;
         std::unordered_map<std::string, efsw::WatchID> m_WatchIDs;
         std::unordered_set<std::string> m_WatchedFiles;
+        std::unique_ptr<Detouring::Hook> m_HandleFileChangeHook;
 
         std::mutex m_Lock;
         std::queue<std::string> m_ModifiedFiles;
@@ -50,6 +55,10 @@ namespace MoonLoader {
         void WatchDirectory(const std::string& path);
         void WatchFile(const std::string& path, const char* pathID);
         void Think();
+
+        // Custom Autorefresh
+        void HandleFileChange(const std::string& path);
+        void RefreshFile(const std::string& path);
     };
 }
 
