@@ -27,6 +27,7 @@ namespace MoonLoader {
         static size_t PathBufferSize();
 
         // --- Path manipulation ---
+        static std::string& Resolve(std::string& path);
         static std::string& FixSlashes(std::string& path);
         static std::string& LowerCase(std::string& path);
         // Fixes slashes and lowercases the path

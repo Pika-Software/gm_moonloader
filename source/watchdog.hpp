@@ -16,6 +16,10 @@ namespace Detouring {
     class Hook;
 }
 
+namespace GarrysMod::Lua {
+    class File;
+}
+
 namespace MoonLoader {
     class Watchdog;
     class Filesystem;
@@ -36,6 +40,7 @@ namespace MoonLoader {
         std::unique_ptr<WatchdogListener> m_WatchdogListener = std::make_unique<WatchdogListener>();;
         std::unordered_map<std::string, efsw::WatchID> m_WatchIDs;
         std::unordered_set<std::string> m_WatchedFiles;
+        std::unordered_map<std::string, GarrysMod::Lua::File*> m_LuaFileCache; // Used for custom autorefresh
         std::unique_ptr<Detouring::Hook> m_HandleFileChangeHook;
 
         std::mutex m_Lock;
@@ -46,8 +51,16 @@ namespace MoonLoader {
         Watchdog(std::shared_ptr<Core>, std::shared_ptr<Filesystem> fs);
         void Start();
 
+        ~Watchdog();
+
         inline bool IsFileWatched(const std::string& path) { return m_WatchedFiles.find(path) != m_WatchedFiles.end(); }
         inline bool IsDirectoryWatched(const std::string& path) { return m_WatchIDs.find(path) != m_WatchIDs.end(); }
+
+        inline void CacheFile(const std::string& path, GarrysMod::Lua::File* file) { m_LuaFileCache.insert_or_assign(path, file); }
+        inline GarrysMod::Lua::File* GetCachedFile(const std::string& path) {
+            auto it = m_LuaFileCache.find(path);
+            return it != m_LuaFileCache.end() ? it->second : nullptr;
+        }
 
         void OnFileModified(const std::string& path);
 

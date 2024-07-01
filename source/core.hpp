@@ -29,6 +29,7 @@ namespace MoonLoader {
     class Compiler;
     class Watchdog;
     class ILuaInterfaceProxy;
+    class ILuaSharedProxy;
     class Errors;
 
     class Core : public std::enable_shared_from_this<Core> {
@@ -42,6 +43,7 @@ namespace MoonLoader {
         std::shared_ptr<Watchdog> watchdog;
         std::shared_ptr<Compiler> compiler;
         std::shared_ptr<ILuaInterfaceProxy> lua_interface_detour;
+        std::shared_ptr<ILuaSharedProxy> lua_shared_detour;
         std::shared_ptr<Errors> errors;
 
         static ConVar cvar_detour_getinfo;
@@ -53,6 +55,7 @@ namespace MoonLoader {
 
         // Finds moonscript file relative to LUA search path
         bool FindMoonScript(std::string& path);
+        void PrepareDirectory(std::string_view path);
         void PrepareFiles();
 
         void Initialize(GarrysMod::Lua::ILuaInterface* LUA);

@@ -14,8 +14,18 @@
 #include <scanning/symbolfinder.hpp>
 #include <detouring/hook.hpp>
 
+#if SYSTEM_IS_WINDOWS
+    #if ARCHITECTURE_IS_X86
+        #define GMCOMMON_CALLING_CONVENTION __thiscall
+    #else
+        #define GMCOMMON_CALLING_CONVENTION __fastcall
+    #endif
+#else
+    #define GMCOMMON_CALLING_CONVENTION
+#endif
+
 namespace Symbols {
-    typedef void (*HandleFileChange_t)(const std::string& path);
+    typedef void (GMCOMMON_CALLING_CONVENTION *HandleFileChange_t)(const std::string& path);
 
     std::vector<Symbol> HandleFileChange = {
 #if ARCHITECTURE_IS_X86
@@ -27,8 +37,7 @@ namespace Symbols {
     #endif
 #elif ARCHITECTURE_IS_X86_64
     #if SYSTEM_IS_WINDOWS
-        Symbol::FromSignature("\x55\x8b\xec\x83\xec\x60\x56\x8b\x75\x08\x8d\x45\xd0\x57\x56\x50\xe8\x6b\x47\x44\x00\x83\xc4\x08\x83\x7d\xe0\x00\x0f\x84\x3c\x02\x00\x00\x56\x8d\x4d\xa0\xe8\xe5\x9a\xf5\xff\x8d\x45\xa0\x50\xe8"),
-        Symbol::FromSignature("\x48\x89\x5c\x24\x10\x48\x89\x74\x24\x18\x48\x89\x7c\x24\x20\x55\x48\x8d\x6c\x24\xa9\x48\x81\xec\xb0\x00\x00\x00\x48\x8b\x05\x65\x56\xb6\x00\x48\x33\xc4\x48\x89\x45\x47\x48\x8b\xf9\x48\x8b\xd1"),
+        Symbol::FromSignature("\x48\x89\x5c\x24\x10\x48\x89\x74\x24\x18\x48\x89\x7c\x24\x20\x55\x48\x8d\x6c\x24\xa9\x48\x81\xec\xb0\x00\x00\x00\x48\x8b\x05\x55"),
     #elif SYSTEM_IS_LINUX
         Symbol::FromSignature("\x55\x48\x89\xfe\x48\x89\xe5\x41\x57\x41\x56\x41\x55\x41\x54\x4c\x8d\x65\x80\x53\x48\x89\xfb\x4c\x89\xe7\x48\x83\xec\x68\xe8\x2d\x23\x1c\x00\x48\x8b\x45\x80\x48\x83\x78\xe8\x00\x75\x2a\x48\x8b"),
     #elif SYSTEM_IS_MACOSX
@@ -71,6 +80,7 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
     if (action == efsw::Actions::Modified) {
         std::string path = dir + filename;
         Filesystem::FixSlashes(path);
+        Filesystem::Resolve(path);
         if (auto watchdog = this->watchdog.lock())
             watchdog->OnFileModified(path);
     }
@@ -92,6 +102,11 @@ Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs)
 void Watchdog::Start() {
     m_Watcher->watch();
     m_WatchdogListener->watchdog = weak_from_this();
+}
+
+Watchdog::~Watchdog() {
+    m_HandleFileChangeHook->Disable();
+    m_HandleFileChangeHook->Destroy();
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
@@ -151,9 +166,11 @@ void Watchdog::Think() {
             DevMsg("[Moonloader] %s was updated. Triggering auto-reload...\n", path.c_str());
 
             if (core->compiler->CompileFile(path, true)) {
-                // Refresh file
-                auto file = core->compiler->FindFileBySourcePath(path);
-                RefreshFile(file->full_output_path);
+                if (auto file = GetCachedFile(path)) {
+                    RefreshFile(file->name);
+                } else {
+                    Warning("[Moonloader] Unable to find file %s in cache. Can't autorefresh it :(\n", path.c_str());
+                }
             }
 
             m_ModifiedFileDelays[path] = currentTimestamp + 200; // Add 200ms delay, before we can reload file again
@@ -164,7 +181,8 @@ void Watchdog::Think() {
 }
 
 void Watchdog::HandleFileChange(const std::string& path) {
-    const char* strPath = path.c_str();
+    std::string strPath = path.c_str();
+    Utils::NormalizePath(strPath);
     if (core->compiler->FindFileByFullOutputPath(strPath)) {
         // We are handling our own file, supress engine's file change
         return;

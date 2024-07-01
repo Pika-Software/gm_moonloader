@@ -5,6 +5,7 @@
 #include <filesystem.h>
 #include <filesystem> // std filesystem
 #include <algorithm>
+#include <sstream>
 
 namespace MoonLoader {
     // ---------------------------- Filesystem ----------------------------
@@ -25,6 +26,47 @@ namespace MoonLoader {
     }
 
     // --- Path manipulation ---
+    std::string& Filesystem::Resolve(std::string& path) {
+        std::vector<std::string_view> segments;
+        auto startPos = path.begin();
+        auto pointer = startPos;
+        bool hasWindowsDrive = false;
+        for (auto pointer = startPos;; pointer++) {
+            if (pointer == path.end() || *pointer == '/' || *pointer == '\\') {
+                std::string_view part(&*startPos, pointer - startPos);
+                if (path == "..") {
+                    // Pop only if there are segments, and it is not a windows drive
+                    if (segments.size() > 0 && (segments.size() != 1 || !hasWindowsDrive))
+                        segments.pop_back();
+                } else if (part == ".") {
+                    // If single dot is at the end, then add empty segment
+                    if (pointer == path.end()) 
+                        segments.push_back("");
+                } else {
+                    // Detect if first segment is a windows drive
+                    if (segments.size() == 0 && part.length() == 2 && std::isalpha(part[0]) && part[1] == ':')
+                        hasWindowsDrive = true;
+       
+                    // Do not add empty segments
+                    // only if it is the first segment or the last one
+                    if (part.length() != 0 || pointer == path.begin() || pointer == path.end())
+                        segments.push_back(part);
+                }
+
+                startPos = pointer + 1;
+                if (pointer == path.end())
+                    break;
+            }
+        }
+
+        std::stringstream buffer;
+        for (auto it = segments.begin(); it != segments.end(); it++) {
+            buffer << *it;
+            if (it != segments.end() - 1) buffer << "/";
+        }
+        path = buffer.str();
+        return path;
+    }
     std::string& Filesystem::FixSlashes(std::string& path) {
         std::replace(path.begin(), path.end(), '\\', '/');
         return path;
@@ -36,6 +78,7 @@ namespace MoonLoader {
     std::string& Filesystem::Normalize(std::string& path) {
         FixSlashes(path);
         LowerCase(path);
+        Resolve(path);
         return path;
     }
     std::string_view Filesystem::FileName(std::string_view path) {
