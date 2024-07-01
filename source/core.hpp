@@ -55,7 +55,7 @@ namespace MoonLoader {
 
         // Finds moonscript file relative to LUA search path
         bool FindMoonScript(std::string& path);
-        void PrepareDirectory(std::string_view path);
+        size_t PrepareDirectory(std::string_view path);
         void PrepareFiles();
 
         void Initialize(GarrysMod::Lua::ILuaInterface* LUA);

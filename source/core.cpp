@@ -181,7 +181,8 @@ bool Core::FindMoonScript(std::string& path) {
     return false;
 }
 
-void Core::PrepareDirectory(std::string_view path) {
+size_t Core::PrepareDirectory(std::string_view path) {
+    size_t files = 0;
     for (auto file : fs->Find(Utils::JoinPaths(path, "*"), LUA->GetPathID())) {
         auto filePath = Utils::JoinPaths(path, file);
         auto fileExt = fs->FileExtension(filePath);
@@ -192,16 +193,18 @@ void Core::PrepareDirectory(std::string_view path) {
                 fs->SetFileExtension(filePath, "lua");
                 fs->CreateDirs(fileDir, "MOONLOADER");
                 fs->WriteToFile(filePath, "MOONLOADER", nullptr, 0); // Just create a dummy file
+                files++;
             }
         } else {
-            PrepareDirectory(filePath);
+            files += PrepareDirectory(filePath);
         }
     }
+    return files;
 }
 
 void Core::PrepareFiles() {
-    DevMsg("[Moonloader] Creating dummy .lua files");
-    PrepareDirectory({}); // Precompile all .yue/.moon files to .lua
+    size_t dummyFiles = PrepareDirectory({}); // Precompile all .yue/.moon files to .lua
+    DevMsg("[Moonloader] Pre-created %d dummy lua files\n", dummyFiles);
 }
 #endif
 
