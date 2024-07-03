@@ -16,7 +16,7 @@
 
 #if SYSTEM_IS_WINDOWS
     #if ARCHITECTURE_IS_X86
-        #define GMCOMMON_CALLING_CONVENTION __thiscall
+        #define GMCOMMON_CALLING_CONVENTION __stdcall
     #else
         #define GMCOMMON_CALLING_CONVENTION __fastcall
     #endif
