@@ -13,6 +13,7 @@
 #include <optional>
 #include <memory>
 #include <unordered_map>
+#include <map>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
@@ -219,7 +220,7 @@ namespace MoonLoader::Utils {
         return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
     }
 
-    inline std::optional<int> FindClosestLine(const std::unordered_map<int, int>& lines, int line) {
+    inline std::optional<int> FindClosestLine(const std::map<int, int>& lines, int line) {
         int closest = -1;
         for (auto& [key, value] : lines) {
             if (key > line) break;
