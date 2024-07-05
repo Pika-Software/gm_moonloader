@@ -280,6 +280,8 @@ void Core::Initialize(GarrysMod::Lua::ILuaInterface* LUA) {
 
     cvar = InterfacePointers::Cvar();
     if (cvar == nullptr) throw std::runtime_error("failed to get ICvar interface");
+
+    g_pCVar = cvar;
     for (ConVar* convar : moonloader_convars)
         cvar->RegisterConCommand(convar);
 

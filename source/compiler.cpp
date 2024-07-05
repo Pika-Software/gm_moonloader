@@ -15,10 +15,10 @@ void yue_openlibs(void* state);
 
 using namespace MoonLoader;
 
-std::unordered_map<int, int> ParseYueLines(std::string_view code) {
+std::map<int, int> ParseYueLines(std::string_view code) {
     static std::regex YUE_LINE_REGEX("--\\s*(\\d*)\\s*$", std::regex_constants::optimize);
 
-    std::unordered_map<int, int> line_map;
+    std::map<int, int> line_map;
     Utils::Split(code, [&](std::string_view line, size_t num) {
         std::cmatch match;
         if (std::regex_search(line.data(), line.data() + line.size(), match, YUE_LINE_REGEX)) {

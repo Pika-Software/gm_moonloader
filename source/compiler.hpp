@@ -5,6 +5,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
 #include <string>
 #include <string_view>
 #include <optional>
@@ -35,7 +36,7 @@ namespace MoonLoader {
             size_t update_date = 0;
             Type type;
 
-            std::unordered_map<int, int> line_map;
+            std::map<int, int> line_map;
         };
 
     private:
