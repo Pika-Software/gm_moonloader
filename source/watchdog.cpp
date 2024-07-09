@@ -40,7 +40,7 @@ namespace Symbols {
     #elif SYSTEM_IS_LINUX
         Symbol::FromSignature("\x55\x48\x89\xfe\x48\x89\xe5\x41\x57\x41\x56\x41\x55\x41\x54\x4c\x8d\x65\x80\x53\x48\x89\xfb\x4c\x89\xe7\x48\x83\xec\x68\xe8\x2d\x23\x1c\x00\x48\x8b\x45\x80\x48\x83\x78\xe8\x00\x75\x2a\x48\x8b"),
     #elif SYSTEM_IS_MACOSX
-        Symbol::FromSignature("\x55\x48\x89\xe5\x53\x48\x81\xec\x88\x00\x00\x00\x48\x89\xfb\x48\x8d\x7d\xc8\x48\x89\xde\xe8\xd5\x21\x11\x00\x8a\x4d\xc8\x89\xc8"),
+        Symbol::FromSignature("\x55\x48\x89\xe5\x53\x48\x81\xec\x88\x00\x00\x00\x48\x89\xfb\x48\x8d\x7d\xc8\x48\x89\xde\xe8\x2A\x21\x11\x00\x8a\x4d\xc8\x89\xc8"),
     #endif
 #endif
     };
@@ -77,9 +77,7 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
 ) {
     // We only care about modified files
     if (action == efsw::Actions::Modified) {
-        std::string path = dir + filename;
-        Filesystem::FixSlashes(path);
-        Filesystem::Resolve(path);
+        std::string path = Utils::Path::Join(dir + filename);
         if (auto watchdog = this->watchdog.lock())
             watchdog->OnFileModified(path);
     }
@@ -111,7 +109,7 @@ Watchdog::~Watchdog() {
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
     std::string relativePath = fs->FullToRelativePath(path, core->LUA->GetPathID());
-    Utils::NormalizePath(relativePath);
+    Utils::Path::Normalize(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);
     if (!IsFileWatched(relativePath))
@@ -138,8 +136,8 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
         return;
 
     std::string fullPath = fs->RelativeToFullPath(path, pathID);
-    Filesystem::Normalize(fullPath);
-    Filesystem::StripFileName(fullPath);
+    Utils::Path::Normalize(fullPath);
+    Utils::Path::Resolve(fullPath);
     if (fullPath.empty()) {
         DevWarning("[Moonloader] Unable to find full path for %s\n", path.c_str());
         return;
@@ -181,7 +179,7 @@ void Watchdog::Think() {
 
 void Watchdog::HandleFileChange(const std::string& path) {
     std::string strPath = path.c_str();
-    Utils::NormalizePath(strPath);
+    Utils::Path::Normalize(strPath);
     if (core->compiler->FindFileByFullOutputPath(strPath)) {
         // We are handling our own file, supress engine's file change
         return;

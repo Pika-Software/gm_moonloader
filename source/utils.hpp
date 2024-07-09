@@ -14,6 +14,7 @@
 #include <memory>
 #include <unordered_map>
 #include <map>
+#include <sstream>
 
 #if IS_SERVERSIDE
 #include <GarrysMod/FactoryLoader.hpp>
@@ -39,75 +40,6 @@ namespace MoonLoader::Utils {
     inline void UpperCase(std::string& path) {
         std::transform(path.begin(), path.end(), path.begin(), ::toupper);
     }
-    inline void FixSlashes(std::string& path, char delimiter = '/') {
-        std::replace(path.begin(), path.end(), '\\', delimiter);
-        std::replace(path.begin(), path.end(), '/', delimiter);
-    }
-    inline void NormalizePath(std::string& path, char delimiter = '/') {
-        FixSlashes(path, delimiter);
-        LowerCase(path);
-    }
-    // dir/file.ext -> dir
-    inline std::string_view GetDirectory(std::string_view path) {
-        size_t pos = path.find_last_of("/\\");
-        if (pos == std::string::npos)
-            return {};
-
-        return path.substr(0, pos);
-    }
-    // dir/file.ext -> file.ext
-    inline std::string_view FileName(std::string_view path) {
-        auto namePos = path.find_first_of("/\\");
-        return namePos != std::string_view::npos ? path.substr(namePos + 1) : path;
-    }
-    // dir/file.ext -> ext
-    inline std::string_view FileExtension(std::string_view path) {
-        auto fileName = FileName(path);
-        auto extPos = !fileName.empty() ? fileName.find_first_of('.') : std::string_view::npos;
-        return extPos != std::string_view::npos ? fileName.substr(extPos + 1) : std::string_view{};
-    }
-    // dir + subdir/file.ext -> dir/subdir/file.ext
-    inline std::string JoinPaths(std::string_view path, std::string_view subPath) {
-        if (path.empty())
-            return std::string(subPath);
-        if (subPath.empty())
-            return std::string(path);
-        if (path.back() == '/' || path.back() == '\\')
-            return std::string(path) + std::string(subPath);
-        return std::string(path) + '/' + std::string(subPath);
-    }
-    inline std::string JoinPaths(std::initializer_list<std::string_view> paths) {
-        std::string result = {};
-        for (auto& path : paths) {
-            if (result.empty() || result.back() == '/' || result.back() == '\\') {
-                result.append(path);
-            } else if (path.empty()) {
-                continue;
-            } else {
-                result.push_back('/');
-                result.append(path);
-            }
-        }
-        return result;
-    }
-    template <typename... Paths> inline std::string JoinPaths(Paths... paths) {
-        return JoinPaths({std::forward<Paths>(paths)...});
-    }
-    // dir/file.ext -> dir/file
-    inline void StripFileExtension(std::string& path) {
-        auto namePos = path.find_last_of('.');
-        size_t slashPos = path.find_last_of("/\\");
-        if (namePos != std::string::npos && (slashPos == std::string::npos || namePos > slashPos)) 
-            path.erase(namePos);
-    }
-    // dir/file.ext + .bak -> dir/file.bak
-    inline void SetFileExtension(std::string& path, std::string_view ext) {
-        if (FileExtension(path) == ext) return;
-        StripFileExtension(path);
-        if (!ext.empty() && ext.front() != '.') path += '.';
-        path += ext;
-    }
-
     inline void RemovePrefix(std::string& str, std::string_view prefix) {
         if (StartsWith(str, prefix))
             str.erase(0, prefix.size());
@@ -242,6 +174,113 @@ namespace MoonLoader::Utils {
         return reinterpret_cast<T*>(module.GetSymbol(symbol));
     }
 #endif
+}
+
+// --------------------------- Path manipulation ---------------------------
+namespace MoonLoader::Utils::Path {
+    // Resolves path, removes ".." and "." segments, and removes any duplicate slashes
+    inline void Resolve(std::string& path) {
+        std::vector<std::string_view> segments;
+        auto startPos = path.begin();
+        auto pointer = startPos;
+        bool hasWindowsDrive = false;
+        for (auto pointer = startPos;; pointer++) {
+            if (pointer == path.end() || *pointer == '/' || *pointer == '\\') {
+                std::string_view part(&*startPos, pointer - startPos);
+                if (path == "..") {
+                    // Pop only if there are segments, and it is not a windows drive
+                    if (segments.size() > 0 && (segments.size() != 1 || !hasWindowsDrive))
+                        segments.pop_back();
+                } else if (part == ".") {
+                    // If single dot is at the end, then add empty segment
+                    if (pointer == path.end()) 
+                        segments.push_back("");
+                } else {
+                    // Detect if first segment is a windows drive
+                    if (segments.size() == 0 && part.length() == 2 && std::isalpha(part[0]) && part[1] == ':')
+                        hasWindowsDrive = true;
+       
+                    // Do not add empty segments
+                    // only if it is the first segment or the last one
+                    if (part.length() != 0 || pointer == path.begin() || pointer == path.end())
+                        segments.push_back(part);
+                }
+
+                startPos = pointer + 1;
+                if (pointer == path.end())
+                    break;
+            }
+        }
+
+        std::stringstream buffer;
+        for (auto it = segments.begin(); it != segments.end(); it++) {
+            buffer << *it;
+            if (it != segments.end() - 1) buffer << "/";
+        }
+        path = buffer.str();
+    }
+    inline void FixSlashes(std::string& path, char delimiter = '/') {
+        std::replace(path.begin(), path.end(), '\\', delimiter);
+        std::replace(path.begin(), path.end(), '/', delimiter);
+    }
+    inline void Normalize(std::string& path, char delimiter = '/') {
+        FixSlashes(path, delimiter);
+        LowerCase(path);
+        Resolve(path);
+    }
+    // dir/file.ext -> dir/
+    inline std::string_view Directory(std::string_view path) {
+        size_t pos = path.find_last_of("/\\");
+        return pos != std::string::npos ? path.substr(0, pos + 1) : std::string_view();
+    }
+    // dir/file.ext -> file.ext
+    inline std::string_view FileName(std::string_view path) {
+        auto namePos = path.find_last_of("/\\");
+        return namePos != std::string_view::npos ? path.substr(namePos + 1) : path;
+    }
+    // dir/file.ext -> ext
+    inline std::string_view Extension(std::string_view path) {
+        auto fileName = FileName(path);
+        auto extPos = !fileName.empty() ? fileName.find_last_of('.') : std::string_view::npos;
+        return extPos != std::string_view::npos ? fileName.substr(extPos + 1) : std::string_view();
+    }
+    // dir/file.ext -> dir/
+    inline void StripFileName(std::string& path) {
+        size_t pos = path.find_last_of("/\\");
+        if (pos != std::string::npos) path.erase(pos + 1);
+        else path.clear();
+    }
+    // dir/file.ext -> dir/file
+    inline void StripExtension(std::string& path) {
+        auto namePos = path.find_last_of("/\\");
+        auto extPos = path.find_last_of('.');
+        if (extPos != std::string::npos && (namePos == std::string::npos || extPos > namePos))
+            path.erase(extPos);
+    }
+    // dir/file.ext + .txt -> dir/file.txt
+    inline void SetExtension(std::string& path, std::string_view ext) {
+        StripExtension(path);
+        if (!ext.empty() && ext.front() != '.')
+            path += '.';
+        path += ext;
+    }
+    inline std::string Join(std::initializer_list<std::string_view> paths) {
+        std::string result = {};
+        for (auto& path : paths) {
+            if (result.empty() || result.back() == '/' || result.back() == '\\') {
+                result.append(path);
+            } else if (path.empty()) {
+                continue;
+            } else {
+                result.push_back('/');
+                result.append(path);
+            }
+        }
+        return result;
+    }
+    template <typename... Paths> inline std::string Join(Paths... paths) {
+        return Join({std::forward<Paths>(paths)...});
+    }
 }
 
 #endif // MOONLOADER_UTILS_HPP

@@ -152,14 +152,14 @@ bool Core::FindMoonScript(std::string& path) {
     const char* currentDir = LUA->GetPath();
     const char* pathID = LUA->GetPathID();
     if (currentDir) {
-        std::string absolutePath = Utils::JoinPaths(currentDir, path);
-        Utils::NormalizePath(absolutePath);
-        Utils::SetFileExtension(absolutePath, "yue");
+        std::string absolutePath = Utils::Path::Join(currentDir, path);
+        Utils::Path::Normalize(absolutePath);
+        Utils::Path::SetExtension(absolutePath, "yue");
         if (fs->Exists(absolutePath, pathID)) {
             path = std::move(absolutePath);
             return true;
         }
-        Utils::SetFileExtension(absolutePath, "moon");
+        Utils::Path::SetExtension(absolutePath, "moon");
         if (fs->Exists(absolutePath, pathID)) {
             path = std::move(absolutePath);
             return true;
@@ -167,13 +167,13 @@ bool Core::FindMoonScript(std::string& path) {
     }
 
     std::string moonPath = path;
-    Utils::NormalizePath(moonPath);
-    Utils::SetFileExtension(moonPath, "yue");
+    Utils::Path::Normalize(moonPath);
+    Utils::Path::SetExtension(moonPath, "yue");
     if (fs->Exists(moonPath, pathID)) {
         path = std::move(moonPath);
         return true;
     }
-    Utils::SetFileExtension(moonPath, "moon");
+    Utils::Path::SetExtension(moonPath, "moon");
     if (fs->Exists(moonPath, pathID)) {
         path = std::move(moonPath);
         return true;
@@ -181,22 +181,31 @@ bool Core::FindMoonScript(std::string& path) {
     return false;
 }
 
+size_t prepareDirectoryCallCount = 0;
+constexpr size_t MAX_PREPARE_DIRECTORY_CALLS = 8196;
+
 size_t Core::PrepareDirectory(std::string_view path) {
     size_t files = 0;
-    for (auto file : fs->Find(Utils::JoinPaths(path, "*"), LUA->GetPathID())) {
-        auto filePath = Utils::JoinPaths(path, file);
-        auto fileExt = fs->FileExtension(filePath);
-        if (fs->IsFile(filePath, LUA->GetPathID())) {
+    prepareDirectoryCallCount++;
+    if (prepareDirectoryCallCount > MAX_PREPARE_DIRECTORY_CALLS) {
+        Warning("[Moonloader] PrepareDirectory: ignoring path \"%s\"\n", path.data());
+        return 0;
+    }
+
+    for (const auto [fileName, isDir] : fs->Find(Utils::Path::Join(path, "*"), LUA->GetPathID())) {
+        auto filePath = Utils::Path::Join(path, fileName);
+        auto fileExt = Utils::Path::Extension(filePath);
+        if (isDir) {
+            files += PrepareDirectory(filePath);
+        } else {
             if (fileExt == "yue" || fileExt == "moon") {
                 auto fileDir = filePath;
-                fs->StripFileName(fileDir);
-                fs->SetFileExtension(filePath, "lua");
+                Utils::Path::StripFileName(fileDir);
+                Utils::Path::SetExtension(filePath, "lua");
                 fs->CreateDirs(fileDir, "MOONLOADER");
                 fs->WriteToFile(filePath, "MOONLOADER", nullptr, 0); // Just create a dummy file
                 files++;
             }
-        } else {
-            files += PrepareDirectory(filePath);
         }
     }
     return files;
@@ -205,6 +214,9 @@ size_t Core::PrepareDirectory(std::string_view path) {
 void Core::PrepareFiles() {
     size_t dummyFiles = PrepareDirectory({}); // Precompile all .yue/.moon files to .lua
     DevMsg("[Moonloader] Pre-created %d dummy lua files\n", dummyFiles);
+    if (prepareDirectoryCallCount > MAX_PREPARE_DIRECTORY_CALLS) {
+        Warning("[Moonloader] PrepareDirectory called too many times, possible infinite loop!\n");
+    }       
 }
 #endif
 
