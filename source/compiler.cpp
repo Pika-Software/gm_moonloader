@@ -48,7 +48,7 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
     CompiledFile compiled_file;
     std::string lua_code;
     compiled_file.source_path = path;
-    if (Utils::FileExtension(path) == "yue") {
+    if (Utils::Path::Extension(path) == "yue") {
         // Yeah.. for every compilation we need to recraete yuecompiler
         // You might ask why? Because Yuecompiler does not
         // clear its internal state after compilation
@@ -75,11 +75,11 @@ bool Compiler::CompileFile(const std::string& path, bool force) {
     }
 
     std::string dir = path;
-    fs->StripFileName(dir);
+    Utils::Path::StripFileName(dir);
     fs->CreateDirs(dir, "MOONLOADER");
 
     compiled_file.output_path = path;
-    fs->SetFileExtension(compiled_file.output_path, "lua");
+    Utils::Path::SetExtension(compiled_file.output_path, "lua");
     if (!fs->WriteToFile(compiled_file.output_path, "MOONLOADER", lua_code.c_str(), lua_code.size()))
         return false;
 

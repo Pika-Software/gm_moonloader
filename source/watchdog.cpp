@@ -77,9 +77,7 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
 ) {
     // We only care about modified files
     if (action == efsw::Actions::Modified) {
-        std::string path = dir + filename;
-        Filesystem::FixSlashes(path);
-        Filesystem::Resolve(path);
+        std::string path = Utils::Path::Join(dir + filename);
         if (auto watchdog = this->watchdog.lock())
             watchdog->OnFileModified(path);
     }
@@ -111,7 +109,7 @@ Watchdog::~Watchdog() {
 void Watchdog::OnFileModified(const std::string& path) {
     // We only care about file we are watching
     std::string relativePath = fs->FullToRelativePath(path, core->LUA->GetPathID());
-    Utils::NormalizePath(relativePath);
+    Utils::Path::Normalize(relativePath);
 
     std::lock_guard<std::mutex> guard(m_Lock);
     if (!IsFileWatched(relativePath))
@@ -138,8 +136,8 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
         return;
 
     std::string fullPath = fs->RelativeToFullPath(path, pathID);
-    Filesystem::Normalize(fullPath);
-    Filesystem::StripFileName(fullPath);
+    Utils::Path::Normalize(fullPath);
+    Utils::Path::Resolve(fullPath);
     if (fullPath.empty()) {
         DevWarning("[Moonloader] Unable to find full path for %s\n", path.c_str());
         return;
@@ -181,7 +179,7 @@ void Watchdog::Think() {
 
 void Watchdog::HandleFileChange(const std::string& path) {
     std::string strPath = path.c_str();
-    Utils::NormalizePath(strPath);
+    Utils::Path::Normalize(strPath);
     if (core->compiler->FindFileByFullOutputPath(strPath)) {
         // We are handling our own file, supress engine's file change
         return;

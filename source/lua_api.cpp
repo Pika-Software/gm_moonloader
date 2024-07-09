@@ -262,7 +262,7 @@ void LuaAPI::AddCSLuaFile(GarrysMod::Lua::ILuaInterface* LUA) {
         std::string targetFile = LUA->GetString(1);
         if (core->FindMoonScript(targetFile)) {
             core->compiler->CompileFile(targetFile);
-            Utils::SetFileExtension(targetFile, "lua");
+            Utils::Path::SetExtension(targetFile, "lua");
         }
 
         LUA->PushString(targetFile.c_str());
@@ -276,11 +276,11 @@ bool LuaAPI::PreCacheFile(GarrysMod::Lua::ILuaInterface* LUA, const std::string&
 }
 
 void LuaAPI::PreCacheDir(GarrysMod::Lua::ILuaInterface* LUA, const std::string& startPath) {
-    for (auto file : core->fs->Find(Utils::JoinPaths(startPath, "*"), LUA->GetPathID())) {
-        std::string path = Utils::JoinPaths(startPath, file);
+    for (const auto [fileName, isDir] : core->fs->Find(Utils::Path::Join(startPath, "*"), LUA->GetPathID())) {
+        std::string path = Utils::Path::Join(startPath, fileName);
         if (core->fs->IsDirectory(path, LUA->GetPathID())) {
             PreCacheDir(LUA, path);
-        } else if (Utils::FileExtension(path) == "moon" || Utils::FileExtension(path) == "yue") {
+        } else if (Utils::Path::Extension(path) == "moon" || Utils::Path::Extension(path) == "yue") {
             PreCacheFile(LUA, path);
         }
     }
