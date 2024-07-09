@@ -25,100 +25,7 @@ namespace MoonLoader {
         return 8192;
     }
 
-    // --- Path manipulation ---
-    std::string& Filesystem::Resolve(std::string& path) {
-        std::vector<std::string_view> segments;
-        auto startPos = path.begin();
-        auto pointer = startPos;
-        bool hasWindowsDrive = false;
-        for (auto pointer = startPos;; pointer++) {
-            if (pointer == path.end() || *pointer == '/' || *pointer == '\\') {
-                std::string_view part(&*startPos, pointer - startPos);
-                if (path == "..") {
-                    // Pop only if there are segments, and it is not a windows drive
-                    if (segments.size() > 0 && (segments.size() != 1 || !hasWindowsDrive))
-                        segments.pop_back();
-                } else if (part == ".") {
-                    // If single dot is at the end, then add empty segment
-                    if (pointer == path.end()) 
-                        segments.push_back("");
-                } else {
-                    // Detect if first segment is a windows drive
-                    if (segments.size() == 0 && part.length() == 2 && std::isalpha(part[0]) && part[1] == ':')
-                        hasWindowsDrive = true;
-       
-                    // Do not add empty segments
-                    // only if it is the first segment or the last one
-                    if (part.length() != 0 || pointer == path.begin() || pointer == path.end())
-                        segments.push_back(part);
-                }
-
-                startPos = pointer + 1;
-                if (pointer == path.end())
-                    break;
-            }
-        }
-
-        std::stringstream buffer;
-        for (auto it = segments.begin(); it != segments.end(); it++) {
-            buffer << *it;
-            if (it != segments.end() - 1) buffer << "/";
-        }
-        path = buffer.str();
-        return path;
-    }
-    std::string& Filesystem::FixSlashes(std::string& path) {
-        std::replace(path.begin(), path.end(), '\\', '/');
-        return path;
-    }
-    std::string& Filesystem::LowerCase(std::string& path) {
-        std::transform(path.begin(), path.end(), path.begin(), ::tolower);
-        return path;
-    }
-    std::string& Filesystem::Normalize(std::string& path) {
-        FixSlashes(path);
-        LowerCase(path);
-        Resolve(path);
-        return path;
-    }
-    std::string_view Filesystem::FileName(std::string_view path) {
-        auto namePos = path.find_first_of('/');
-        return namePos != std::string_view::npos ? path.substr(namePos + 1) : path;
-    }
-    std::string_view Filesystem::FileExtension(std::string_view path) {
-        auto fileName = FileName(path);
-        auto extPos = !fileName.empty() ? fileName.find_first_of('.') : std::string_view::npos;
-        return extPos != std::string_view::npos ? fileName.substr(extPos + 1) : std::string_view{};
-    }
-    std::string& Filesystem::StripFileName(std::string& path) {
-        auto namePos = path.find_last_of('/');
-        if (namePos == std::string::npos) // '/' wasn't found, then just clear given path
-            namePos = -1;
-        path.erase(namePos + 1);
-        return path;
-    }
-    std::string& Filesystem::StripFileExtension(std::string& path) {
-        auto namePos = path.find_last_of('.');
-        if (namePos != std::string::npos)
-            path.erase(namePos);
-        return path;
-    }
-    std::string& Filesystem::SetFileExtension(std::string& path, std::string_view ext) {
-        StripFileExtension(path);
-        if (!ext.empty() && ext.front() != '.')
-            path += '.';
-        path += ext;
-        return path;
-    }
-    std::string Filesystem::Join(std::string_view path, std::string_view subPath) {
-        std::string finalPath = std::string(path);
-        if (!finalPath.empty() && finalPath.back() != '/')
-            finalPath += '/';
-
-        finalPath += subPath;
-        return finalPath;
-    }
-
+    // Path manipulation
     std::string Filesystem::RelativeToFullPath(const std::string& path, const char* pathID) {
         std::lock_guard<std::mutex> lock(m_IOLock);
         bool success = m_InternalFS->RelativePathToFullPath(path.c_str(), pathID, PathBuffer(), PathBufferSize()) != NULL;
@@ -132,7 +39,7 @@ namespace MoonLoader {
     std::string Filesystem::TransverseRelativePath(const std::string& relativePath, const char* fromPathID, const char* toPathID) {
         std::string result = RelativeToFullPath(relativePath, fromPathID);
         if (!result.empty()) result = FullToRelativePath(result, toPathID);
-        if (!result.empty()) Utils::NormalizePath(result);
+        if (!result.empty()) Utils::Path::Normalize(result);
         return result;
     }
     // -------------------------
@@ -159,8 +66,8 @@ namespace MoonLoader {
     int Filesystem::RemoveDir(const std::string& dir, const char* pathID) {
         int removed = 0;
         // We need to remove all files in the directory first
-        for (auto file : Find(Join(dir, "*"), pathID)) {
-            removed += Remove(Join(dir, file), pathID);
+        for (const auto [fileName, isDir] : Find(Utils::Path::Join(dir, "*"), pathID)) {
+            removed += Remove(Utils::Path::Join(dir, fileName), pathID);
         }
         // After removing all files, we can safely remove the directory
         return RemoveFile(dir, pathID) + removed;
@@ -228,60 +135,58 @@ namespace MoonLoader {
         m_InternalFS->RemoveSearchPath(path.c_str(), pathID);
     }
 
-    void Filesystem::CreateDirectorySymlink(const std::string& target, const char* targetPathID, const std::string& link, const char* linkPathID) {
-        std::string fullTarget, fullLink, fileName;
-        fullLink = link;
-        fileName = FileName(link);
-        StripFileName(fullLink);
-
-        fullTarget = RelativeToFullPath(target, targetPathID);
-        fullLink = RelativeToFullPath(fullLink, linkPathID);
-
-        fullLink += fileName;
-        try {
-            std::filesystem::create_directory_symlink(fullTarget, fullLink);
-        } catch(const std::filesystem::filesystem_error& err) {
-            if (err.code() == std::errc::file_exists) return; // Ignore 'file exists' error
-            throw;
-        }
-    }
-
     // ---------------------------- FileFinder ----------------------------
-    Filesystem::FileFinder::iterator Filesystem::FileFinder::INVALID_ITERATOR = {};
-
-    Filesystem::FileFinder::iterator& Filesystem::FileFinder::iterator::operator++() {
-        if (!m_Filesystem || !valid_handle() || m_pFileName == NULL)
-            return INVALID_ITERATOR;
+    bool Filesystem::FileFinder::Iterator::SetValue(const char* pFileName) {
+        if (pFileName == 0) {
+            if (m_Handle != 0) {
+                m_Filesystem->m_IOLock.lock();
+                m_Filesystem->m_InternalFS->FindClose(m_Handle);
+                m_Filesystem->m_IOLock.unlock();
+            }
+    
+            m_Filesystem = nullptr;
+            m_Handle = 0;
+            m_Value = {};
+            return false;
+        }
 
         m_Filesystem->m_IOLock.lock();
-        m_pFileName = m_Filesystem->m_InternalFS->FindNext(m_Handle);
-        if (m_pFileName == NULL) {
-            m_Filesystem->m_InternalFS->FindClose(m_Handle);
-            m_Handle = 0;
-        }
+        m_Value = {pFileName, m_Filesystem->m_InternalFS->FindIsDirectory(m_Handle)};
         m_Filesystem->m_IOLock.unlock();
-
-        return m_pFileName != NULL ? *this : INVALID_ITERATOR;
+        return true;
     }
 
-    Filesystem::FileFinder::iterator Filesystem::FileFinder::begin() {
+    Filesystem::FileFinder::Iterator& Filesystem::FileFinder::Iterator::operator++() {
+        if (m_Handle == 0)
+            return *this;
+        
+        m_Filesystem->m_IOLock.lock();
+        const char* pFileName = m_Filesystem->m_InternalFS->FindNext(m_Handle);
+        m_Filesystem->m_IOLock.unlock();
+
+        SetValue(pFileName);
+
+        return *this;
+    }
+
+    Filesystem::FileFinder::Iterator Filesystem::FileFinder::begin() {
         if (!m_Filesystem || m_SearchWildcard.empty())
             return end();
         
-        FileFindHandle_t findHandle;
+        FileFindHandle_t handle;
         m_Filesystem->m_IOLock.lock();
-        const char* pFilename = m_Filesystem->m_InternalFS->FindFirstEx(m_SearchWildcard.c_str(), m_PathID.c_str(), &findHandle);
-
-        while (pFilename != NULL && (strcmp(pFilename, ".") == 0 || strcmp(pFilename, "..") == 0)) {
-            // Skip . and ..
-            pFilename = m_Filesystem->m_InternalFS->FindNext(findHandle);
-        }
+        const char* pFileName = m_Filesystem->m_InternalFS->FindFirstEx(m_SearchWildcard.c_str(), m_PathID.empty() ? nullptr : m_PathID.c_str(), &handle);
         m_Filesystem->m_IOLock.unlock();
 
-        if (pFilename == NULL) {
-            return end();
+        auto iterator = Iterator(m_Filesystem, handle, pFileName);
+
+        // Skip `.` and `..`
+        while (true) {
+            const auto [fileName, isDir] = *iterator;
+            if (fileName != "." && fileName != "..") break;
+            ++iterator;
         }
 
-        return iterator(findHandle, m_Filesystem, pFilename);
+        return iterator;
     }
 }

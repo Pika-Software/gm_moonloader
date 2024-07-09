@@ -7,6 +7,7 @@
 #include <mutex>
 #include <iterator>
 #include <vector>
+#include <tuple>
 #include <platform.h>
 
 // SourceSDK filesystem
@@ -27,25 +28,6 @@ namespace MoonLoader {
         static size_t PathBufferSize();
 
         // --- Path manipulation ---
-        static std::string& Resolve(std::string& path);
-        static std::string& FixSlashes(std::string& path);
-        static std::string& LowerCase(std::string& path);
-        // Fixes slashes and lowercases the path
-        static std::string& Normalize(std::string& path);
-
-        // dir/file.ext -> file.ext
-        static std::string_view FileName(std::string_view path);
-        // dir/file.ext -> ext
-        static std::string_view FileExtension(std::string_view path);
-        // dir/file.ext -> dir
-        static std::string& StripFileName(std::string& path);
-        // dir/file.ext -> dir/file
-        static std::string& StripFileExtension(std::string& path);
-        // dir/file.ext + .bak -> dir/file.bak
-        static std::string& SetFileExtension(std::string& path, std::string_view ext);
-        // dir + subdir/file.ext -> dir/subdir/file.ext
-        static std::string Join(std::string_view path, std::string_view subPath);
-
         std::string RelativeToFullPath(const std::string& relativePath, const char* pathID);
         std::string FullToRelativePath(const std::string& fullPath, const char* pathID);
         std::string TransverseRelativePath(const std::string& relativePath, const char* fromPathID, const char* toPathID);
@@ -72,47 +54,53 @@ namespace MoonLoader {
 
         void AddSearchPath(const std::string& path, const char* pathID = 0, bool addToFront = false);
         void RemoveSearchPath(const std::string& path, const char* pathID = 0);
-
-        void CreateDirectorySymlink(const std::string& target, const char* targetPathID, const std::string& link, const char* linkPathID);
-        inline void CreateDirectorySymlink(const std::string& target, const std::string& link, const char* pathID = 0) { CreateDirectorySymlink(target, pathID, link, pathID); }
     };
 
     class Filesystem::FileFinder {
+    public:
+        class Iterator {
+        public:
+            using iterator_category = std::input_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = std::tuple<std::string_view, bool>;
+            using pointer           = value_type*;
+            using reference         = value_type&;
+
+            Iterator() = default;
+            Iterator(Filesystem* filesystem, FileFindHandle_t handle, const char* pFileName)
+                : m_Filesystem(filesystem), m_Handle(handle) { SetValue(pFileName); }
+
+            Iterator(const Iterator&) = delete;
+            Iterator& operator=(const Iterator&) = delete;
+            Iterator(Iterator&&) = default;
+            Iterator& operator=(Iterator&&) = default;
+
+            reference operator*() { return m_Value; }
+            pointer operator->() { return &m_Value; }
+
+            Iterator& operator++();
+
+            friend bool operator== (const Iterator& a, const Iterator& b) { return a.m_Handle == b.m_Handle && a.m_Value == b.m_Value; };
+            friend bool operator!= (const Iterator& a, const Iterator& b) { return a.m_Handle != b.m_Handle || a.m_Value != b.m_Value; };
+
+        private:
+            Filesystem* m_Filesystem = nullptr;
+            FileFindHandle_t m_Handle = 0;
+            value_type m_Value = {};
+
+            bool SetValue(const char* pFileName);
+        };
+
+        FileFinder(Filesystem* filesystem, const std::string& wildcard, const std::string& pathID = {})
+            : m_Filesystem(filesystem), m_SearchWildcard(wildcard), m_PathID(pathID) {}
+
+        Iterator begin();
+        Iterator end() const { return Iterator(); }
+
+    private:
         Filesystem* m_Filesystem;
         std::string m_SearchWildcard;
         std::string m_PathID;
-
-    public:
-        class iterator : public std::iterator<
-            std::input_iterator_tag,   // iterator_category
-            const char*,                      // value_type
-            const char*,                      // difference_type
-            const char*,               // pointer
-            const char*                       // reference
-        > {
-            FileFindHandle_t m_Handle = 0;
-            Filesystem* m_Filesystem = nullptr;
-            const char* m_pFileName = 0;
-
-        public:
-            iterator() {} // Empty constructor for end()
-            explicit iterator(FileFindHandle_t handle, Filesystem* filesystem, const char* fileName)
-                : m_Handle(handle), m_Filesystem(filesystem), m_pFileName(fileName) {}
-
-            bool valid_handle() const { return m_Handle > 0; }
-            iterator& operator++();
-            bool operator==(const iterator& other) const { return m_Handle == other.m_Handle; }
-            bool operator!=(const iterator& other) const { return !(*this == other); }
-            reference operator*() const { return m_pFileName; }
-        };
-
-        static iterator INVALID_ITERATOR;
-
-        FileFinder(Filesystem* filesystem, const std::string& wildcard, const char* pathID = 0)
-            : m_Filesystem(filesystem), m_SearchWildcard(wildcard), m_PathID(pathID ? pathID : "") {}
-
-        iterator begin();
-        iterator end() const { return INVALID_ITERATOR; }
     };
 }
 
