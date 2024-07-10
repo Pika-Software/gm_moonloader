@@ -137,7 +137,7 @@ void MoonLoader::Watchdog::WatchFile(const std::string& path, const char* pathID
 
     std::string fullPath = fs->RelativeToFullPath(path, pathID);
     Utils::Path::Normalize(fullPath);
-    Utils::Path::Resolve(fullPath);
+    Utils::Path::StripFileName(fullPath);
     if (fullPath.empty()) {
         DevWarning("[Moonloader] Unable to find full path for %s\n", path.c_str());
         return;
