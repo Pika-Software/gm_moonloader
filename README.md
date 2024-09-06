@@ -16,16 +16,15 @@ Just add `require "moonloader"` line into your autorun!
 ```lua
 require "moonloader"
 ```
-2. Include your `.moon` file with `include`
+2. Include your `.moon`/`.yue` file with `include`
 ```lua
--- you can use example/init.moon, but for the sake of compability
--- I suggest to use .lua instead of .moon
-include "example/init.lua" -- Will automatically generate .lua from .moon in garrysmod/cache/moonloader/lua
+-- you need to pass `.lua` to include since Garry's Mod wont accept anything else
+-- but gm_moonloader will find a .moon file and load it
+include "example/init.lua" -- Will automatically generate .lua from .moon/.yue in garrysmod/cache/moonloader/lua
 ```
-3. (optional) before using finding lua files with `file.Find` or reading them I suggest to use `moonloader.PreCacheDir("yourdirectory")` to compile .lua files from all .moon files
 
 ## Notes
-* Compiled `.moon` files are stored in `garrysmod/cache/moonloader/lua` folder. This folder is cleaned up after each startup.
+* Compiled `.moon`/`.yue` files are stored in `garrysmod/cache/moonloader/lua` folder. This folder is cleaned up after each startup.
 
 ## Example
 ```lua

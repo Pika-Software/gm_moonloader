@@ -325,7 +325,14 @@ int LuaAPI::DebugGetInfo(GarrysMod::Lua::ILuaInterface* LUA) {
     GetInfo_ref.Push();
     int iArgs = LUA->Top() - 1;
     for (int i = 1; i <= iArgs; i++) {
-        LUA->Push(i);
+        if (i == 1 && LUA->IsType(i, GarrysMod::Lua::Type::Number)) {
+            double stackPos = LUA->GetNumber(i);
+            // Hide original debug.getinfo builtin function from the stack
+            stackPos += 1;
+            LUA->PushNumber(stackPos);
+        } else {
+            LUA->Push(i);
+        }
     }
     LUA->Call(iArgs, 1);
 
