@@ -15,62 +15,51 @@
 #include <scanning/symbolfinder.hpp>
 #include <detouring/hook.hpp>
 
-#if SYSTEM_IS_WINDOWS
-    #if ARCHITECTURE_IS_X86
-        #define GMCOMMON_CALLING_CONVENTION __stdcall
-    #else
-        #define GMCOMMON_CALLING_CONVENTION __fastcall
-    #endif
-#else
-    #define GMCOMMON_CALLING_CONVENTION
-#endif
-
 namespace Symbols {
-    typedef void (GMCOMMON_CALLING_CONVENTION *HandleFileChange_t)(const std::string& path);
+    typedef void (GMCOMMON_CALLING_CONVENTION_STD *HandleFileChange_t)(const std::string& path);
 
     std::vector<Symbol> HandleFileChange = {
 #if ARCHITECTURE_IS_X86
     #if SYSTEM_IS_WINDOWS
-        Symbol::FromSignature("\x55\x8b\xec\x83\xec\x60\x56\x8b\x75\x08\x8d\x45\xd0\x57\x56\x50\xe8\x2A\x2A\x2A\x00\x83\xc4\x08\x83\x7d\xe0\x00\x0f\x84\x60\x02"),
+        Symbol::FromSignature("\x55\x8b\xec\x83\xec\x60\x56\x8b\x75\x08\x8d\x45\xd0\x56\x50\xe8\x2A\x2A\x2A\x2A\x83\xc4\x08\x83\x7d\xe0\x00\x0f\x84"),
     #elif SYSTEM_IS_LINUX
-        Symbol::FromSignature("\x55\x89\xe5\x57\x56\x53\x8d\x5d\x98\x83\xec\x7c\x8b\x75\x08\x89\x1c\x24\x89\x74\x24\x04\xe8\x2A\x2A\x2A\x00\x8b\x45\x98\x83\xec"),
+        Symbol::FromSignature("\x55\x89\xe5\x57\x56\x53\x8d\x5d\x98\x83\xec\x7c\x8b\x75\x08\x89\x1c\x24\x89\x74\x24\x04\xe8\x2A\x2A\x2A\x2A\x8b\x45\x98\x83\xec\x04\x8b\x50\xf4\x85\xd2\x0f\x84"),
     #endif
 #elif ARCHITECTURE_IS_X86_64
     #if SYSTEM_IS_WINDOWS
-        Symbol::FromSignature("\x48\x89\x5c\x24\x10\x48\x89\x74\x24\x18\x48\x89\x7c\x24\x20\x55\x48\x8d\x6c\x24\xa9\x48\x81\xec\xb0\x00\x00\x00\x48\x8b\x05\x2A"),
+        Symbol::FromSignature("\x48\x89\x5c\x24\x10\x48\x89\x74\x24\x18\x48\x89\x7c\x24\x20\x55\x48\x8d\x6c\x24\xa9\x48\x81\xec\xb0\x00\x00\x00\x48\x8b\x05\x2A\x2A\x2A\x2A\x48\x33\xc4\x48\x89\x45\x47\x48\x8b\xf9\x48\x8b\xd1\x48\x8d\x4d\xc7\xe8\x2A\x2A\x2A\x2A\x48\x83\x7d\xd7\x00\x0f\x84"),
     #elif SYSTEM_IS_LINUX
-        Symbol::FromSignature("\x55\x48\x89\xfe\x48\x89\xe5\x41\x57\x41\x56\x41\x55\x41\x54\x4c\x8d\x65\x80\x53\x48\x89\xfb\x4c\x89\xe7\x48\x83\xec\x68\xe8\x2A")
+        Symbol::FromSignature("\x55\x48\x89\xfe\x48\x89\xe5\x41\x57\x41\x56\x41\x55\x41\x54\x4c\x8d\x65\x80\x53\x48\x89\xfb\x4c\x89\xe7\x48\x83\xec\x68\xe8\x2A\x2A\x2A\x2A\x48\x8b\x45\x80\x48\x83\x78\xe8\x00\x75")
     #elif SYSTEM_IS_MACOSX
-        Symbol::FromSignature("\x55\x48\x89\xe5\x53\x48\x81\xec\x88\x00\x00\x00\x48\x89\xfb\x48\x8d\x7d\xc8\x48\x89\xde\xe8\x2A\x2A\x2A\x00\x8a\x4d\xc8\x89\xc8"),
+        Symbol::FromSignature("\x55\x48\x89\xe5\x53\x48\x81\xec\x88\x00\x00\x00\x48\x89\xfb\x48\x8d\x7d\xc8\x48\x89\xde\xe8\x2A\x2A\x2A\x2A\x8a\x4d\xc8\x89\xc8\x24\x01\x74"),
     #endif
 #endif
     };
 
     static SymbolFinder finder;
     template<typename T>
-    static inline T ResolveSymbol(SourceSDK::FactoryLoader& loader, const Symbol& symbol, const void* start = nullptr) {
-        return reinterpret_cast<T>( finder.Resolve(loader.GetModule(), symbol.name.c_str(), symbol.length, start) );
-    }
-
-    template<typename T>
-    static inline std::vector<T> ResolveSymbols(SourceSDK::FactoryLoader& loader, const std::vector<Symbol>& symbols) {
+    static inline std::vector<T> ResolveSymbol(SourceSDK::FactoryLoader& loader, const Symbol& symbol) {
         static_assert(std::is_pointer<T>::value, "T must be a pointer");
 
         // vector used to catch if signature eventually find more than one function
         // I'm still new into signatures, so they may be wrong
         std::vector<T> pointers;
-        for (const auto& symbol : symbols) {
-            T ptr = nullptr;
-            while (ptr = ResolveSymbol<T>( loader, symbol, ptr )) {
-                pointers.push_back(ptr);
-                ptr = reinterpret_cast<T>(reinterpret_cast<char*>(ptr) + 1);
-            }
-
-            if (pointers.size() > 1)
-                break;
+        void* ptr = nullptr;
+        while (ptr = finder.Resolve(loader.GetModule(), symbol.name.c_str(), symbol.length, ptr)) {
+            pointers.push_back( reinterpret_cast<T>(ptr) );
+            ptr = reinterpret_cast<void*>(reinterpret_cast<char*>(ptr) + 1);
         }
-
         return pointers;
+    }
+
+    template<typename T>
+    static inline std::vector<T> ResolveSymbols(SourceSDK::FactoryLoader& loader, const std::vector<Symbol>& symbols) {
+        for (const auto& symbol : symbols) {
+            auto pointers = ResolveSymbol<T>(loader, symbol);
+            if (!pointers.empty())
+                return pointers;
+        }
+        return {};
     }
 }
 
@@ -101,7 +90,10 @@ Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs)
 
     auto HandleFileChange_pointers = Symbols::ResolveSymbols<Symbols::HandleFileChange_t>(server_loader, Symbols::HandleFileChange);
     if (HandleFileChange_pointers.size() == 1) {
-        if (!m_HandleFileChangeHook.Create((void*)HandleFileChange_pointers[0], (void*)HandleFileChange_detour) || !m_HandleFileChangeHook.Enable()) {
+        auto HandleFileChange_original = HandleFileChange_pointers[0];
+        if (m_HandleFileChangeHook.Create((void*)HandleFileChange_original, (void*)HandleFileChange_detour) && m_HandleFileChangeHook.Enable()) {
+            DevMsg("[Moonloader] HandleFileChange: %p\n", HandleFileChange_original);
+        } else {
             core->LUA->ErrorNoHalt("[Moonloader] Failed to hook HandleFileChange function! Autorefresh won't work properly.\n\tPlease, report to " MOONLOADER_URL "/issues\n");
         }
     } else if (HandleFileChange_pointers.empty()) {
