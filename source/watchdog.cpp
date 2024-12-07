@@ -4,6 +4,7 @@
 #include "filesystem.hpp"
 #include "utils.hpp"
 #include "core.hpp"
+#include "config.hpp"
 
 #include <tier0/dbg.h>
 #include <chrono>
@@ -47,19 +48,29 @@ namespace Symbols {
 
     static SymbolFinder finder;
     template<typename T>
-    static inline T ResolveSymbol(SourceSDK::FactoryLoader& loader, const Symbol& symbol) {
-        return reinterpret_cast<T>( finder.Resolve(loader.GetModule(), symbol.name.c_str(), symbol.length) );
+    static inline T ResolveSymbol(SourceSDK::FactoryLoader& loader, const Symbol& symbol, const void* start = nullptr) {
+        return reinterpret_cast<T>( finder.Resolve(loader.GetModule(), symbol.name.c_str(), symbol.length, start) );
     }
 
     template<typename T>
-    static inline T ResolveSymbols(SourceSDK::FactoryLoader& loader, const std::vector<Symbol>& symbols) {
-        T ptr = nullptr;
+    static inline std::vector<T> ResolveSymbols(SourceSDK::FactoryLoader& loader, const std::vector<Symbol>& symbols) {
+        static_assert(std::is_pointer<T>::value, "T must be a pointer");
+
+        // vector used to catch if signature eventually find more than one function
+        // I'm still new into signatures, so they may be wrong
+        std::vector<T> pointers;
         for (const auto& symbol : symbols) {
-            ptr = ResolveSymbol<T>(loader, symbol);
-            if (ptr != nullptr)
+            T ptr = nullptr;
+            while (ptr = ResolveSymbol<T>( loader, symbol, ptr )) {
+                pointers.push_back(ptr);
+                ptr = reinterpret_cast<T>(reinterpret_cast<char*>(ptr) + 1);
+            }
+
+            if (pointers.size() > 1)
                 break;
         }
-        return ptr;
+
+        return pointers;
     }
 }
 
@@ -87,13 +98,17 @@ Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs)
     : core(core), fs(fs) 
 {
     SourceSDK::FactoryLoader server_loader("server");
-    auto HandleFileChange_original = Symbols::ResolveSymbols<Symbols::HandleFileChange_t>(server_loader, Symbols::HandleFileChange);
-    if (HandleFileChange_original == nullptr)
-        throw std::runtime_error("Failed to resolve HandleFileChange");
 
-    m_HandleFileChangeHook = std::make_unique<Detouring::Hook>((void*)HandleFileChange_original, (void*)HandleFileChange_detour);
-    if (!m_HandleFileChangeHook->Enable())
-        throw std::runtime_error("Failed to hook HandleFileChange");
+    auto HandleFileChange_pointers = Symbols::ResolveSymbols<Symbols::HandleFileChange_t>(server_loader, Symbols::HandleFileChange);
+    if (HandleFileChange_pointers.size() == 1) {
+        if (!m_HandleFileChangeHook.Create((void*)HandleFileChange_pointers[0], (void*)HandleFileChange_detour) || !m_HandleFileChangeHook.Enable()) {
+            core->LUA->ErrorNoHalt("[Moonloader] Failed to hook HandleFileChange function! Autorefresh won't work properly.\n\tPlease, report to " MOONLOADER_URL "/issues\n");
+        }
+    } else if (HandleFileChange_pointers.empty()) {
+        core->LUA->ErrorNoHalt("[Moonloader] HandleFileChange not found! Autorefresh won't work properly.\n\tPlease, report to " MOONLOADER_URL "/issues\n" );
+    } else {
+        core->LUA->ErrorNoHalt("[Moonloader] Too many functions were found for HandleFileChange signature! Autorefresh won't work properly.\n\tPlease, report to " MOONLOADER_URL "/issues\n");
+    }
 }
 
 void Watchdog::Start() {
@@ -102,8 +117,7 @@ void Watchdog::Start() {
 }
 
 Watchdog::~Watchdog() {
-    m_HandleFileChangeHook->Disable();
-    m_HandleFileChangeHook->Destroy();
+    m_HandleFileChangeHook.Disable();
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
@@ -189,5 +203,9 @@ void Watchdog::HandleFileChange(const std::string& path) {
 }
 
 void Watchdog::RefreshFile(const std::string& path) {
-    m_HandleFileChangeHook->GetTrampoline<Symbols::HandleFileChange_t>()(path);
+    if (m_HandleFileChangeHook.IsValid()) {
+        m_HandleFileChangeHook.GetTrampoline<Symbols::HandleFileChange_t>()(path);
+    } else {
+        // TODO: use lua_refresh_file?
+    }
 }

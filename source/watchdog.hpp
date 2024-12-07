@@ -11,10 +11,7 @@
 #include <tier0/platform.h>
 #include <efsw/efsw.hpp>
 #include <GarrysMod/Lua/LuaInterface.h>
-
-namespace Detouring {
-    class Hook;
-}
+#include <detouring/hook.hpp>
 
 namespace GarrysMod::Lua {
     class File;
@@ -41,7 +38,7 @@ namespace MoonLoader {
         std::unordered_map<std::string, efsw::WatchID> m_WatchIDs;
         std::unordered_set<std::string> m_WatchedFiles;
         std::unordered_map<std::string, GarrysMod::Lua::File*> m_LuaFileCache; // Used for custom autorefresh
-        std::unique_ptr<Detouring::Hook> m_HandleFileChangeHook;
+        Detouring::Hook m_HandleFileChangeHook;
 
         std::mutex m_Lock;
         std::queue<std::string> m_ModifiedFiles;
