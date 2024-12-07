@@ -7,12 +7,6 @@
 #include <Platform.hpp>
 
 #if IS_SERVERSIDE
-#if ARCHITECTURE_IS_X86
-#include <Color.h>
-#else
-#include <color.h>
-#endif
-
 #include <unordered_set>
 #else
 struct Color {
