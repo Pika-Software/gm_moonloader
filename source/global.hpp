@@ -5,9 +5,9 @@
 
 #include <GarrysMod/Lua/LuaInterface.h>
 #include <Platform.hpp>
-#include <color.h>
 
 #if IS_SERVERSIDE
+#include <color.h>
 #include <unordered_set>
 #else
 struct Color {
