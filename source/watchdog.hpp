@@ -8,16 +8,16 @@
 #include <unordered_set>
 #include <queue>
 #include <mutex>
-#include <tier0/platform.h>
 #include <efsw/efsw.hpp>
 #include <GarrysMod/Lua/LuaInterface.h>
-
-namespace Detouring {
-    class Hook;
-}
+#include <detouring/hook.hpp>
 
 namespace GarrysMod::Lua {
     class File;
+}
+
+namespace Detouring {
+    class Hook;
 }
 
 namespace MoonLoader {

@@ -20,7 +20,7 @@ GMOD_MODULE_OPEN() {
         core->Deinitialize();
         core.reset();
 
-        ILUA->ThrowError(Utils::Format("error during moonloader core initialization: %s", e.what()).c_str());
+        ILUA->ThrowError(Utils::Format("[Moonloader] Fatal error: %s", e.what()).c_str());
     }
 
     return 0;
