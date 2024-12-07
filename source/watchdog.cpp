@@ -86,12 +86,13 @@ void WatchdogListener::handleFileAction(efsw::WatchID watchid, const std::string
 Watchdog::Watchdog(std::shared_ptr<Core> core, std::shared_ptr<Filesystem> fs) 
     : core(core), fs(fs) 
 {
+    m_HandleFileChangeHook = std::make_unique<Detouring::Hook>();
     SourceSDK::FactoryLoader server_loader("server");
 
     auto HandleFileChange_pointers = Symbols::ResolveSymbols<Symbols::HandleFileChange_t>(server_loader, Symbols::HandleFileChange);
     if (HandleFileChange_pointers.size() == 1) {
         auto HandleFileChange_original = HandleFileChange_pointers[0];
-        if (m_HandleFileChangeHook.Create((void*)HandleFileChange_original, (void*)HandleFileChange_detour) && m_HandleFileChangeHook.Enable()) {
+        if (m_HandleFileChangeHook->Create((void*)HandleFileChange_original, (void*)HandleFileChange_detour) && m_HandleFileChangeHook->Enable()) {
             DevMsg("[Moonloader] HandleFileChange: %p\n", HandleFileChange_original);
         } else {
             core->LUA->ErrorNoHalt("[Moonloader] Failed to hook HandleFileChange function! Autorefresh won't work properly.\n\tPlease, report to " MOONLOADER_URL "/issues\n");
@@ -109,7 +110,7 @@ void Watchdog::Start() {
 }
 
 Watchdog::~Watchdog() {
-    m_HandleFileChangeHook.Disable();
+    m_HandleFileChangeHook->Disable();
 }
 
 void Watchdog::OnFileModified(const std::string& path) {
@@ -195,8 +196,8 @@ void Watchdog::HandleFileChange(const std::string& path) {
 }
 
 void Watchdog::RefreshFile(const std::string& path) {
-    if (m_HandleFileChangeHook.IsValid()) {
-        m_HandleFileChangeHook.GetTrampoline<Symbols::HandleFileChange_t>()(path);
+    if (m_HandleFileChangeHook->IsValid()) {
+        m_HandleFileChangeHook->GetTrampoline<Symbols::HandleFileChange_t>()(path);
     } else {
         // TODO: use lua_refresh_file?
     }
